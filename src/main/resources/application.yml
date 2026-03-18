@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: assetdock-api
+  profiles:
+    default: local
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+    time-zone: UTC
+  mvc:
+    problemdetails:
+      enabled: true
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: assetdock-hikari
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-migration-naming: true
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  show-actuator: false
+info:
+  app:
+    name: ${spring.application.name}
+    description: Multi-tenant asset inventory API scaffold
+    version: ${APP_VERSION:0.1.0-SNAPSHOT}
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
+security:
+  jwt:
+    secret: ${JWT_SECRET:}
+    issuer: ${JWT_ISSUER:assetdock-api}
+    access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}

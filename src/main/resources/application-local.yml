@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/assetdock}
+    username: ${DB_USERNAME:assetdock}
+    password: ${DB_PASSWORD}
