@@ -1,5 +1,10 @@
 package com.assetdock.api.auth.application;
 
+import com.assetdock.api.audit.application.AuditContext;
+import com.assetdock.api.audit.application.AuditContextProvider;
+import com.assetdock.api.audit.application.AuditLogCommand;
+import com.assetdock.api.audit.application.AuditLogService;
+import com.assetdock.api.audit.domain.AuditLogRepository;
 import com.assetdock.api.auth.infrastructure.JwtProperties;
 import com.assetdock.api.auth.infrastructure.JwtTokenService;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -46,6 +51,7 @@ class AuthenticationServiceTest {
 
 	private AuthenticationService authenticationService;
 	private PasswordEncoder passwordEncoder;
+	private AuditLogRepository auditLogRepository;
 
 	@BeforeEach
 	void setUp() {
@@ -58,8 +64,25 @@ class AuthenticationServiceTest {
 			jwtEncoder,
 			new JwtProperties("test-only-jwt-secret-key-with-32-bytes", "assetdock-api", Duration.ofMinutes(15))
 		);
+		auditLogRepository = org.mockito.Mockito.mock(AuditLogRepository.class);
+		AuditLogService auditLogService = new AuditLogService(
+			auditLogRepository,
+			new AuditContextProvider() {
+				@Override
+				public AuditContext current() {
+					return new AuditContext("127.0.0.1", "JUnit", "test-request-id");
+				}
+			},
+			clock
+		);
 
-		authenticationService = new AuthenticationService(userRepository, passwordEncoder, jwtTokenService, clock);
+		authenticationService = new AuthenticationService(
+			userRepository,
+			passwordEncoder,
+			jwtTokenService,
+			auditLogService,
+			clock
+		);
 	}
 
 	@Test

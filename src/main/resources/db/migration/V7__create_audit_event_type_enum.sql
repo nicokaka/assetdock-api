@@ -1,0 +1,7 @@
+CREATE TYPE audit_event_type AS ENUM (
+    'LOGIN_SUCCESS',
+    'LOGIN_FAILURE',
+    'USER_CREATED',
+    'USER_DISABLED',
+    'USER_UPDATED'
+);

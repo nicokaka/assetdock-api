@@ -1,5 +1,8 @@
 package com.assetdock.api.user.application;
 
+import com.assetdock.api.audit.application.AuditLogCommand;
+import com.assetdock.api.audit.application.AuditLogService;
+import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
 import com.assetdock.api.organization.domain.OrganizationRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -29,6 +32,7 @@ public class UserManagementService {
 	private final OrganizationRepository organizationRepository;
 	private final TenantAccessService tenantAccessService;
 	private final PasswordEncoder passwordEncoder;
+	private final AuditLogService auditLogService;
 	private final Clock clock;
 
 	public UserManagementService(
@@ -36,12 +40,14 @@ public class UserManagementService {
 		OrganizationRepository organizationRepository,
 		TenantAccessService tenantAccessService,
 		PasswordEncoder passwordEncoder,
+		AuditLogService auditLogService,
 		Clock clock
 	) {
 		this.userRepository = userRepository;
 		this.organizationRepository = organizationRepository;
 		this.tenantAccessService = tenantAccessService;
 		this.passwordEncoder = passwordEncoder;
+		this.auditLogService = auditLogService;
 		this.clock = clock;
 	}
 
@@ -81,6 +87,19 @@ public class UserManagementService {
 			savedUser.id(),
 			savedUser.organizationId()
 		);
+		auditLogService.record(new AuditLogCommand(
+			savedUser.organizationId(),
+			actor.userId(),
+			AuditEventType.USER_CREATED,
+			"user",
+			savedUser.id(),
+			"SUCCESS",
+			java.util.Map.of(
+				"email", savedUser.email(),
+				"status", savedUser.status().name(),
+				"roles", savedUser.roles().stream().map(Enum::name).toList()
+			)
+		));
 
 		return toView(savedUser, actor);
 	}
@@ -123,6 +142,18 @@ public class UserManagementService {
 			userId,
 			status
 		);
+		auditLogService.record(new AuditLogCommand(
+			updatedUser.organizationId(),
+			actor.userId(),
+			status == UserStatus.ACTIVE ? AuditEventType.USER_UPDATED : AuditEventType.USER_DISABLED,
+			"user",
+			updatedUser.id(),
+			"SUCCESS",
+			java.util.Map.of(
+				"previousStatus", user.status().name(),
+				"newStatus", updatedUser.status().name()
+			)
+		));
 
 		return toView(updatedUser, actor);
 	}

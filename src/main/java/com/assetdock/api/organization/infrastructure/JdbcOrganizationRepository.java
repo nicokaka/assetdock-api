@@ -31,6 +31,34 @@ public class JdbcOrganizationRepository implements OrganizationRepository {
 			.optional();
 	}
 
+	@Override
+	public Optional<Organization> findBySlug(String slug) {
+		return jdbcClient.sql("""
+			SELECT id, name, slug, created_at, updated_at
+			FROM organizations
+			WHERE slug = :slug
+			""")
+			.param("slug", slug)
+			.query(this::mapOrganization)
+			.optional();
+	}
+
+	@Override
+	public Organization save(Organization organization) {
+		jdbcClient.sql("""
+			INSERT INTO organizations (id, name, slug, created_at, updated_at)
+			VALUES (:id, :name, :slug, :createdAt, :updatedAt)
+			""")
+			.param("id", organization.id())
+			.param("name", organization.name())
+			.param("slug", organization.slug())
+			.param("createdAt", organization.createdAt())
+			.param("updatedAt", organization.updatedAt())
+			.update();
+
+		return organization;
+	}
+
 	private Organization mapOrganization(ResultSet resultSet, int rowNum) throws SQLException {
 		return new Organization(
 			resultSet.getObject("id", UUID.class),

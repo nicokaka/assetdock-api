@@ -1,5 +1,6 @@
 package com.assetdock.api;
 
+import com.assetdock.api.config.LocalDevelopmentSeedRunner;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -30,6 +31,9 @@ class AssetdockApiApplicationTests {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired(required = false)
+	private LocalDevelopmentSeedRunner localDevelopmentSeedRunner;
+
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -40,6 +44,11 @@ class AssetdockApiApplicationTests {
 
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void localSeedShouldNotRunOutsideLocalProfile() {
+		org.assertj.core.api.Assertions.assertThat(localDevelopmentSeedRunner).isNull();
 	}
 
 	@Test

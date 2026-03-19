@@ -1,5 +1,9 @@
 package com.assetdock.api.user.application;
 
+import com.assetdock.api.audit.application.AuditContext;
+import com.assetdock.api.audit.application.AuditContextProvider;
+import com.assetdock.api.audit.application.AuditLogService;
+import com.assetdock.api.audit.domain.AuditLogRepository;
 import com.assetdock.api.organization.domain.Organization;
 import com.assetdock.api.organization.domain.OrganizationRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -53,11 +57,22 @@ class UserManagementServiceTest {
 	@BeforeEach
 	void setUp() {
 		passwordEncoder = new BCryptPasswordEncoder();
+		AuditLogService auditLogService = new AuditLogService(
+			org.mockito.Mockito.mock(AuditLogRepository.class),
+			new AuditContextProvider() {
+				@Override
+				public AuditContext current() {
+					return new AuditContext("127.0.0.1", "JUnit", "test-request-id");
+				}
+			},
+			Clock.fixed(NOW, ZoneOffset.UTC)
+		);
 		userManagementService = new UserManagementService(
 			userRepository,
 			organizationRepository,
 			new TenantAccessService(),
 			passwordEncoder,
+			auditLogService,
 			Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 	}
