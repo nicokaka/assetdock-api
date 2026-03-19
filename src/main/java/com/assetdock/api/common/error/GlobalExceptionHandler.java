@@ -3,6 +3,8 @@ package com.assetdock.api.common.error;
 import com.assetdock.api.auth.application.InactiveUserAuthenticationException;
 import com.assetdock.api.auth.application.InvalidCredentialsException;
 import com.assetdock.api.auth.application.LockedUserAuthenticationException;
+import com.assetdock.api.catalog.application.CatalogItemAlreadyExistsException;
+import com.assetdock.api.catalog.application.InvalidCatalogRequestException;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
 import com.assetdock.api.user.application.EmailAlreadyInUseException;
 import com.assetdock.api.user.application.InvalidUserRequestException;
@@ -226,6 +228,38 @@ public class GlobalExceptionHandler {
 			"Invalid user request",
 			exception.getMessage(),
 			"urn:assetdock:problem:invalid-user-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(CatalogItemAlreadyExistsException.class)
+	ResponseEntity<ProblemDetail> handleCatalogItemAlreadyExists(
+		CatalogItemAlreadyExistsException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.CONFLICT,
+			"Catalog item already exists",
+			exception.getMessage(),
+			"urn:assetdock:problem:catalog-item-already-exists",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidCatalogRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidCatalogRequest(
+		InvalidCatalogRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid catalog request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-catalog-request",
 			extractPath(request)
 		);
 
