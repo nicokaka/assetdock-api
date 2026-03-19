@@ -20,4 +20,12 @@ public record AuthenticatedUserPrincipal(
 			Set.copyOf(user.roles())
 		);
 	}
+
+	public boolean hasRole(UserRole role) {
+		return roles.contains(role);
+	}
+
+	public boolean isSuperAdmin() {
+		return hasRole(UserRole.SUPER_ADMIN);
+	}
 }

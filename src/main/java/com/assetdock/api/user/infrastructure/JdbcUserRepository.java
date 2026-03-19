@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -25,9 +26,7 @@ public class JdbcUserRepository implements UserRepository {
 
 	@Override
 	public Optional<User> findByEmail(String normalizedEmail) {
-		Optional<UserSnapshot> snapshot = jdbcClient.sql("""
-			SELECT id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at
-			FROM users
+		Optional<UserSnapshot> snapshot = jdbcClient.sql(baseSelect() + """
 			WHERE LOWER(email) = :email
 			""")
 			.param("email", normalizedEmail)
@@ -35,6 +34,103 @@ public class JdbcUserRepository implements UserRepository {
 			.optional();
 
 		return snapshot.map(this::toUser);
+	}
+
+	@Override
+	public Optional<User> findById(UUID userId) {
+		Optional<UserSnapshot> snapshot = jdbcClient.sql(baseSelect() + """
+			WHERE id = :userId
+			""")
+			.param("userId", userId)
+			.query(this::mapUserSnapshot)
+			.optional();
+
+		return snapshot.map(this::toUser);
+	}
+
+	@Override
+	public List<User> findAll() {
+		return jdbcClient.sql(baseSelect() + "ORDER BY full_name, email")
+			.query(this::mapUserSnapshot)
+			.list()
+			.stream()
+			.map(this::toUser)
+			.toList();
+	}
+
+	@Override
+	public List<User> findAllByOrganizationId(UUID organizationId) {
+		return jdbcClient.sql(baseSelect() + """
+			WHERE organization_id = :organizationId
+			ORDER BY full_name, email
+			""")
+			.param("organizationId", organizationId)
+			.query(this::mapUserSnapshot)
+			.list()
+			.stream()
+			.map(this::toUser)
+			.toList();
+	}
+
+	@Override
+	public boolean existsByEmail(String normalizedEmail) {
+		Boolean exists = jdbcClient.sql("""
+			SELECT EXISTS(
+				SELECT 1
+				FROM users
+				WHERE LOWER(email) = :email
+			)
+			""")
+			.param("email", normalizedEmail)
+			.query(Boolean.class)
+			.single();
+
+		return Boolean.TRUE.equals(exists);
+	}
+
+	@Override
+	public User save(User user) {
+		jdbcClient.sql("""
+			INSERT INTO users (id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at)
+			VALUES (:id, :organizationId, :email, :fullName, :passwordHash, :status, :lastLoginAt, :createdAt, :updatedAt)
+			""")
+			.param("id", user.id())
+			.param("organizationId", user.organizationId())
+			.param("email", user.email())
+			.param("fullName", user.fullName())
+			.param("passwordHash", user.passwordHash())
+			.param("status", user.status().name())
+			.param("lastLoginAt", user.lastLoginAt())
+			.param("createdAt", user.createdAt())
+			.param("updatedAt", user.updatedAt())
+			.update();
+
+		user.roles().forEach(role -> jdbcClient.sql("""
+			INSERT INTO user_roles (user_id, role, created_at)
+			VALUES (:userId, :role, :createdAt)
+			""")
+			.param("userId", user.id())
+			.param("role", role.name())
+			.param("createdAt", user.createdAt())
+			.update());
+
+		return user;
+	}
+
+	@Override
+	public User updateStatus(UUID userId, UserStatus status, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET status = :status,
+			    updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("status", status.name())
+			.param("updatedAt", updatedAt)
+			.param("userId", userId)
+			.update();
+
+		return findById(userId).orElseThrow();
 	}
 
 	@Override
@@ -78,6 +174,13 @@ public class JdbcUserRepository implements UserRepository {
 			.list()
 			.stream()
 			.collect(LinkedHashSet::new, LinkedHashSet::add, LinkedHashSet::addAll);
+	}
+
+	private String baseSelect() {
+		return """
+			SELECT id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at
+			FROM users
+			""";
 	}
 
 	private UserSnapshot mapUserSnapshot(ResultSet resultSet, int rowNum) throws SQLException {

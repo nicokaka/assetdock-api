@@ -3,6 +3,10 @@ package com.assetdock.api.common.error;
 import com.assetdock.api.auth.application.InactiveUserAuthenticationException;
 import com.assetdock.api.auth.application.InvalidCredentialsException;
 import com.assetdock.api.auth.application.LockedUserAuthenticationException;
+import com.assetdock.api.organization.application.OrganizationNotFoundException;
+import com.assetdock.api.user.application.EmailAlreadyInUseException;
+import com.assetdock.api.user.application.InvalidUserRequestException;
+import com.assetdock.api.user.application.UserNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Map;
@@ -165,6 +169,67 @@ public class GlobalExceptionHandler {
 		);
 
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+	}
+
+	@ExceptionHandler(OrganizationNotFoundException.class)
+	ResponseEntity<ProblemDetail> handleOrganizationNotFound(
+		OrganizationNotFoundException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.NOT_FOUND,
+			"Organization not found",
+			"The requested organization does not exist.",
+			"urn:assetdock:problem:organization-not-found",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
+	@ExceptionHandler(UserNotFoundException.class)
+	ResponseEntity<ProblemDetail> handleUserNotFound(UserNotFoundException exception, WebRequest request) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.NOT_FOUND,
+			"User not found",
+			"The requested user does not exist.",
+			"urn:assetdock:problem:user-not-found",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
+	@ExceptionHandler(EmailAlreadyInUseException.class)
+	ResponseEntity<ProblemDetail> handleEmailAlreadyInUse(
+		EmailAlreadyInUseException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.CONFLICT,
+			"Email already in use",
+			"The provided email is already associated with another user.",
+			"urn:assetdock:problem:email-already-in-use",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidUserRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidUserRequest(
+		InvalidUserRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid user request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-user-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
 	}
 
 	@ExceptionHandler(ErrorResponseException.class)
