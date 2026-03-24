@@ -109,4 +109,35 @@ public class TenantAccessService {
 			throw new AccessDeniedException("Cross-tenant access is not allowed.");
 		}
 	}
+
+	public void requireAssignmentReadAccess(AuthenticatedUserPrincipal actor, UUID targetOrganizationId) {
+		if (actor.isSuperAdmin()) {
+			return;
+		}
+
+		if (!actor.hasRole(UserRole.ORG_ADMIN)
+			&& !actor.hasRole(UserRole.ASSET_MANAGER)
+			&& !actor.hasRole(UserRole.AUDITOR)
+			&& !actor.hasRole(UserRole.VIEWER)) {
+			throw new AccessDeniedException("You do not have permission to read assignments.");
+		}
+
+		if (actor.organizationId() == null || !actor.organizationId().equals(targetOrganizationId)) {
+			throw new AccessDeniedException("Cross-tenant access is not allowed.");
+		}
+	}
+
+	public void requireAssignmentWriteAccess(AuthenticatedUserPrincipal actor, UUID targetOrganizationId) {
+		if (actor.isSuperAdmin()) {
+			return;
+		}
+
+		if (!actor.hasRole(UserRole.ORG_ADMIN) && !actor.hasRole(UserRole.ASSET_MANAGER)) {
+			throw new AccessDeniedException("You do not have permission to manage assignments.");
+		}
+
+		if (actor.organizationId() == null || !actor.organizationId().equals(targetOrganizationId)) {
+			throw new AccessDeniedException("Cross-tenant access is not allowed.");
+		}
+	}
 }

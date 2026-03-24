@@ -3,6 +3,8 @@ package com.assetdock.api.common.error;
 import com.assetdock.api.auth.application.InactiveUserAuthenticationException;
 import com.assetdock.api.auth.application.InvalidCredentialsException;
 import com.assetdock.api.auth.application.LockedUserAuthenticationException;
+import com.assetdock.api.assignment.application.AssignmentAlreadyActiveException;
+import com.assetdock.api.assignment.application.InvalidAssignmentRequestException;
 import com.assetdock.api.asset.application.AssetAlreadyExistsException;
 import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.asset.application.InvalidAssetRequestException;
@@ -308,6 +310,38 @@ public class GlobalExceptionHandler {
 			"Invalid asset request",
 			exception.getMessage(),
 			"urn:assetdock:problem:invalid-asset-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(AssignmentAlreadyActiveException.class)
+	ResponseEntity<ProblemDetail> handleAssignmentAlreadyActive(
+		AssignmentAlreadyActiveException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.CONFLICT,
+			"Assignment already active",
+			exception.getMessage(),
+			"urn:assetdock:problem:assignment-already-active",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidAssignmentRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidAssignmentRequest(
+		InvalidAssignmentRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid assignment request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-assignment-request",
 			extractPath(request)
 		);
 
