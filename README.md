@@ -306,6 +306,24 @@ Planned MVP stack:
 - **Testcontainers (PostgreSQL)**
 - **Problem Details** for standardized API errors
 
+Run the project and tests with a Java 21 JDK.
+Set `JAVA_HOME` to a Java 21 installation before invoking Gradle.
+The Gradle toolchain is pinned to Java 21, and `gradle.properties` is configured to resolve it from `JAVA_HOME`.
+
+Example setup:
+
+Windows PowerShell:
+`$env:JAVA_HOME="C:\Program Files\Java\jdk-21"`
+`$env:Path="$env:JAVA_HOME\bin;$env:Path"`
+`.\gradlew.bat test`
+
+macOS / Linux:
+`export JAVA_HOME=/path/to/jdk-21`
+`export PATH="$JAVA_HOME/bin:$PATH"`
+`./gradlew test`
+
+If `JAVA_HOME` points to another version, Gradle will fail because the project requires Java 21.
+
 ---
 
 ## Database and Migration Strategy

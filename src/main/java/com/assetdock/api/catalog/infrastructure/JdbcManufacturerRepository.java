@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -67,6 +68,20 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 			.param("organizationId", organizationId)
 			.query(this::mapManufacturer)
 			.list();
+	}
+
+	@Override
+	public Optional<Manufacturer> findByIdAndOrganizationId(UUID id, UUID organizationId) {
+		return jdbcClient.sql("""
+			SELECT id, organization_id, name, description, website, active, created_at, updated_at
+			FROM manufacturers
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", id)
+			.param("organizationId", organizationId)
+			.query(this::mapManufacturer)
+			.optional();
 	}
 
 	private Manufacturer mapManufacturer(ResultSet resultSet, int rowNum) throws SQLException {

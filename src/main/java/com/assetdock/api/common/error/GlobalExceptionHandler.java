@@ -3,6 +3,9 @@ package com.assetdock.api.common.error;
 import com.assetdock.api.auth.application.InactiveUserAuthenticationException;
 import com.assetdock.api.auth.application.InvalidCredentialsException;
 import com.assetdock.api.auth.application.LockedUserAuthenticationException;
+import com.assetdock.api.asset.application.AssetAlreadyExistsException;
+import com.assetdock.api.asset.application.AssetNotFoundException;
+import com.assetdock.api.asset.application.InvalidAssetRequestException;
 import com.assetdock.api.catalog.application.CatalogItemAlreadyExistsException;
 import com.assetdock.api.catalog.application.InvalidCatalogRequestException;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
@@ -202,6 +205,19 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
 	}
 
+	@ExceptionHandler(AssetNotFoundException.class)
+	ResponseEntity<ProblemDetail> handleAssetNotFound(AssetNotFoundException exception, WebRequest request) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.NOT_FOUND,
+			"Asset not found",
+			"The requested asset does not exist.",
+			"urn:assetdock:problem:asset-not-found",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
 	@ExceptionHandler(EmailAlreadyInUseException.class)
 	ResponseEntity<ProblemDetail> handleEmailAlreadyInUse(
 		EmailAlreadyInUseException exception,
@@ -260,6 +276,38 @@ public class GlobalExceptionHandler {
 			"Invalid catalog request",
 			exception.getMessage(),
 			"urn:assetdock:problem:invalid-catalog-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(AssetAlreadyExistsException.class)
+	ResponseEntity<ProblemDetail> handleAssetAlreadyExists(
+		AssetAlreadyExistsException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.CONFLICT,
+			"Asset already exists",
+			exception.getMessage(),
+			"urn:assetdock:problem:asset-already-exists",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidAssetRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidAssetRequest(
+		InvalidAssetRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid asset request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-asset-request",
 			extractPath(request)
 		);
 

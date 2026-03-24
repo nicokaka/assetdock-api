@@ -1,6 +1,7 @@
 package com.assetdock.api.catalog.domain;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface CategoryRepository {
@@ -10,4 +11,6 @@ public interface CategoryRepository {
 	Category save(Category category);
 
 	List<Category> findAllByOrganizationId(UUID organizationId);
+
+	Optional<Category> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

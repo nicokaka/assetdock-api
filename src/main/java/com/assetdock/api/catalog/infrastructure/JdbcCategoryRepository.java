@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -66,6 +67,20 @@ public class JdbcCategoryRepository implements CategoryRepository {
 			.param("organizationId", organizationId)
 			.query(this::mapCategory)
 			.list();
+	}
+
+	@Override
+	public Optional<Category> findByIdAndOrganizationId(UUID id, UUID organizationId) {
+		return jdbcClient.sql("""
+			SELECT id, organization_id, name, description, active, created_at, updated_at
+			FROM categories
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", id)
+			.param("organizationId", organizationId)
+			.query(this::mapCategory)
+			.optional();
 	}
 
 	private Category mapCategory(ResultSet resultSet, int rowNum) throws SQLException {

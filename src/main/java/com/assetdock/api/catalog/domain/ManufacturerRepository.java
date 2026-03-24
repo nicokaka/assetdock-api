@@ -1,6 +1,7 @@
 package com.assetdock.api.catalog.domain;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface ManufacturerRepository {
@@ -10,4 +11,6 @@ public interface ManufacturerRepository {
 	Manufacturer save(Manufacturer manufacturer);
 
 	List<Manufacturer> findAllByOrganizationId(UUID organizationId);
+
+	Optional<Manufacturer> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }
