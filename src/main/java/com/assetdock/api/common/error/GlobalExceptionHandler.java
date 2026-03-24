@@ -3,6 +3,7 @@ package com.assetdock.api.common.error;
 import com.assetdock.api.auth.application.InactiveUserAuthenticationException;
 import com.assetdock.api.auth.application.InvalidCredentialsException;
 import com.assetdock.api.auth.application.LockedUserAuthenticationException;
+import com.assetdock.api.audit.application.InvalidAuditLogQueryException;
 import com.assetdock.api.assignment.application.AssignmentAlreadyActiveException;
 import com.assetdock.api.assignment.application.InvalidAssignmentRequestException;
 import com.assetdock.api.asset.application.AssetAlreadyExistsException;
@@ -376,6 +377,22 @@ public class GlobalExceptionHandler {
 			"Invalid asset import request",
 			exception.getMessage(),
 			"urn:assetdock:problem:invalid-asset-import-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidAuditLogQueryException.class)
+	ResponseEntity<ProblemDetail> handleInvalidAuditLogQuery(
+		InvalidAuditLogQueryException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid audit log query",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-audit-log-query",
 			extractPath(request)
 		);
 

@@ -170,4 +170,18 @@ public class TenantAccessService {
 			throw new AccessDeniedException("Cross-tenant access is not allowed.");
 		}
 	}
+
+	public void requireAuditLogReadAccess(AuthenticatedUserPrincipal actor, UUID targetOrganizationId) {
+		if (actor.isSuperAdmin()) {
+			return;
+		}
+
+		if (!actor.hasRole(UserRole.ORG_ADMIN) && !actor.hasRole(UserRole.AUDITOR)) {
+			throw new AccessDeniedException("You do not have permission to read audit logs.");
+		}
+
+		if (actor.organizationId() == null || !actor.organizationId().equals(targetOrganizationId)) {
+			throw new AccessDeniedException("Cross-tenant access is not allowed.");
+		}
+	}
 }
