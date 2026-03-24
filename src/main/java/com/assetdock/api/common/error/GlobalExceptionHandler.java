@@ -10,6 +10,8 @@ import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.asset.application.InvalidAssetRequestException;
 import com.assetdock.api.catalog.application.CatalogItemAlreadyExistsException;
 import com.assetdock.api.catalog.application.InvalidCatalogRequestException;
+import com.assetdock.api.importer.application.AssetImportJobNotFoundException;
+import com.assetdock.api.importer.application.InvalidAssetImportRequestException;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
 import com.assetdock.api.user.application.EmailAlreadyInUseException;
 import com.assetdock.api.user.application.InvalidUserRequestException;
@@ -220,6 +222,22 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
 	}
 
+	@ExceptionHandler(AssetImportJobNotFoundException.class)
+	ResponseEntity<ProblemDetail> handleAssetImportJobNotFound(
+		AssetImportJobNotFoundException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.NOT_FOUND,
+			"Asset import job not found",
+			"The requested asset import job does not exist.",
+			"urn:assetdock:problem:asset-import-job-not-found",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
 	@ExceptionHandler(EmailAlreadyInUseException.class)
 	ResponseEntity<ProblemDetail> handleEmailAlreadyInUse(
 		EmailAlreadyInUseException exception,
@@ -342,6 +360,22 @@ public class GlobalExceptionHandler {
 			"Invalid assignment request",
 			exception.getMessage(),
 			"urn:assetdock:problem:invalid-assignment-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidAssetImportRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidAssetImportRequest(
+		InvalidAssetImportRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid asset import request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-asset-import-request",
 			extractPath(request)
 		);
 

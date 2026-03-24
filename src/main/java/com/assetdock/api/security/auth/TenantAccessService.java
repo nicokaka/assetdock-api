@@ -140,4 +140,34 @@ public class TenantAccessService {
 			throw new AccessDeniedException("Cross-tenant access is not allowed.");
 		}
 	}
+
+	public void requireImportReadAccess(AuthenticatedUserPrincipal actor, UUID targetOrganizationId) {
+		if (actor.isSuperAdmin()) {
+			return;
+		}
+
+		if (!actor.hasRole(UserRole.ORG_ADMIN)
+			&& !actor.hasRole(UserRole.ASSET_MANAGER)
+			&& !actor.hasRole(UserRole.AUDITOR)) {
+			throw new AccessDeniedException("You do not have permission to read import jobs.");
+		}
+
+		if (actor.organizationId() == null || !actor.organizationId().equals(targetOrganizationId)) {
+			throw new AccessDeniedException("Cross-tenant access is not allowed.");
+		}
+	}
+
+	public void requireImportWriteAccess(AuthenticatedUserPrincipal actor, UUID targetOrganizationId) {
+		if (actor.isSuperAdmin()) {
+			return;
+		}
+
+		if (!actor.hasRole(UserRole.ORG_ADMIN) && !actor.hasRole(UserRole.ASSET_MANAGER)) {
+			throw new AccessDeniedException("You do not have permission to import assets.");
+		}
+
+		if (actor.organizationId() == null || !actor.organizationId().equals(targetOrganizationId)) {
+			throw new AccessDeniedException("Cross-tenant access is not allowed.");
+		}
+	}
 }
