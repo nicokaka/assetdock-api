@@ -1,178 +1,242 @@
-# AssetDock API
+<div align="center">
 
-AssetDock API is a security-first, multi-tenant asset inventory backend built as a modular monolith.
+🌐 **English** · [Português](README.pt-BR.md)
 
-## MVP Status
+# 🔒 AssetDock API
 
-The backend MVP is implemented and currently focused on final hardening.
+**Security-First, Multi-Tenant Asset Inventory Platform**
 
-Implemented modules:
+[![CI](https://github.com/nicokaka/assetdock-api/actions/workflows/ci.yml/badge.svg)](https://github.com/nicokaka/assetdock-api/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
+![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
+![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
+![License](https://img.shields.io/badge/License-Private-lightgrey)
 
-- `auth`
-- `organization`
-- `user`
-- `catalog`
-- `asset`
-- `assignment`
-- `importer`
-- `audit`
+A production-grade backend API for managing hardware and software assets across organizations.  
+Built with **tenant isolation**, **role-based access control**, **immutable audit trails**, and a focus on **data integrity** — the foundations that matter in any security-conscious environment.
 
-Shared support modules:
+[Architecture](#architecture) · [Security Model](#security--multi-tenancy) · [API Reference](#api-reference) · [Getting Started](#getting-started)
 
-- `security`
-- `common`
-- `config`
+</div>
+
+---
+
+## Why AssetDock?
+
+Organizations need a reliable, auditable system to track **who has what, when it was assigned, and what changed**. AssetDock solves this with:
+
+- 🏢 **Multi-tenant isolation** — each organization's data is logically separated at the query level; cross-tenant access is denied by design.
+- 🛡️ **Role-based authorization** — five distinct roles enforce least-privilege access across every endpoint.
+- 📋 **Immutable audit logging** — every critical action (create, update, delete, assign, import) is recorded with actor, timestamp, and tenant context.
+- 📦 **Bulk CSV import** — upload asset inventories with per-row validation, size/line limits, and partial-success semantics.
+
+---
 
 ## Architecture
 
-- Modular monolith with packages by domain: `api`, `application`, `domain`, `infrastructure`
-- Shared-schema multi-tenancy with `organization_id` isolation
-- Forward-only Flyway migrations
-- JWT authentication + role-based authorization
+```
+┌─────────────────────────────────────────────────────────┐
+│                     AssetDock API                       │
+│                  Modular Monolith                       │
+├──────────┬──────────┬──────────┬────────────┬───────────┤
+│   Auth   │  Asset   │ Catalog  │ Assignment │  Importer │
+│  Module  │  Module  │  Module  │   Module   │   Module  │
+├──────────┼──────────┼──────────┼────────────┼───────────┤
+│   User   │   Org    │  Audit   │  Security  │  Common   │
+│  Module  │  Module  │  Module  │  (shared)  │  (shared) │
+├──────────┴──────────┴──────────┴────────────┴───────────┤
+│           Spring Security + JWT (RSA)                   │
+├─────────────────────────────────────────────────────────┤
+│           PostgreSQL 17 + Flyway Migrations             │
+└─────────────────────────────────────────────────────────┘
+```
 
-Roles in MVP:
+| Principle | Implementation |
+|---|---|
+| **Modular Monolith** | Each domain module follows `api → application → domain → infrastructure` layering |
+| **Shared-Schema Multi-Tenancy** | Tenant isolation via `organization_id` on all scoped entities |
+| **Forward-Only Migrations** | Flyway-managed DDL — no manual SQL, no rollback scripts |
+| **Domain-Driven Packaging** | 8 bounded contexts: `auth`, `user`, `organization`, `catalog`, `asset`, `assignment`, `importer`, `audit` |
+| **Architecture Decision Records** | Documented trade-offs in `docs/adr/` (e.g. global email uniqueness strategy) |
 
-- `SUPER_ADMIN`
-- `ORG_ADMIN`
-- `ASSET_MANAGER`
-- `AUDITOR`
-- `VIEWER`
+---
 
-## Implemented Features
+## Security & Multi-Tenancy
 
-- JWT login (`POST /api/v1/auth/login`)
-- User management with global unique email
-- Tenant-aware catalog management (`categories`, `manufacturers`, `locations`)
-- Tenant-aware asset management
-- Asset assignment flow (`assign`, `unassign`, history by asset)
-- Asset CSV import with persisted jobs, row validation, size/line limits and partial success
-- Persisted audit logs for critical actions
-- Audit log read endpoint with tenant-aware access, pagination and simple filters
+> Security is not a feature — it's the architecture.
 
-## API Overview
+### Role-Based Access Control (RBAC)
 
-Main endpoint groups:
+| Role | Scope | Capabilities |
+|---|---|---|
+| `SUPER_ADMIN` | Global | Full system access, cross-tenant operations |
+| `ORG_ADMIN` | Tenant | Manage users, assets, catalogs within their org |
+| `ASSET_MANAGER` | Tenant | CRUD on assets, assignments, imports |
+| `AUDITOR` | Tenant | Read-only access to audit logs |
+| `VIEWER` | Tenant | Read-only access to assets and catalogs |
 
-- `/api/v1/auth/*`
-- `/organizations/*`
-- `/users/*`
-- `/categories`, `/manufacturers`, `/locations`
-- `/assets/*`
-- `/assets/{assetId}/assignments`, `/assets/{assetId}/unassign`
-- `/imports/assets/*`
-- `/audit-logs` and `/api/v1/audit-logs`
+### Tenant Isolation Guarantees
 
-Notes:
+- ✅ Every read and write operation is scoped to the authenticated tenant
+- ✅ Cross-tenant data access is systematically denied
+- ✅ Audit logs capture `organizationId`, `actorId`, `eventType`, and `timestamp`
+- ✅ Standardized error responses follow **RFC 9457 (Problem Details)** format
 
-- Authentication route is versioned.
-- Business routes are stable and tenant-aware.
-- Audit log read is available in both unversioned and versioned forms for compatibility.
+### Authentication Flow
 
-## Audit Log Read Endpoint
+```
+Client ──► POST /api/v1/auth/login (credentials)
+       ◄── JWT access token (signed, expiring)
+Client ──► GET /assets (Authorization: Bearer <token>)
+       ◄── Tenant-scoped response
+```
 
-`GET /audit-logs` (or `GET /api/v1/audit-logs`)
+---
 
-Supported query params:
+## API Reference
 
-- `page` (default `0`)
-- `size` (default `20`, max `100`)
-- `eventType` (optional)
-- `from` (optional, ISO-8601 datetime)
-- `to` (optional, ISO-8601 datetime)
-- `organizationId` (optional, intended for `SUPER_ADMIN` scope selection)
+All business endpoints are tenant-aware. The authenticated user's `organization_id` is automatically applied.
 
-Permissions:
+| Group | Endpoints | Description |
+|---|---|---|
+| **Auth** | `POST /api/v1/auth/login` | JWT authentication |
+| **Organizations** | `/organizations/*` | Tenant management |
+| **Users** | `/users/*` | User lifecycle (invite, update, deactivate) |
+| **Catalog** | `/categories`, `/manufacturers`, `/locations` | Asset metadata management |
+| **Assets** | `/assets/*` | Full asset CRUD |
+| **Assignments** | `/assets/{id}/assignments`, `/assets/{id}/unassign` | Assign/unassign assets with history tracking |
+| **Import** | `/imports/assets/*` | CSV bulk import with job tracking |
+| **Audit Logs** | `/audit-logs` | Paginated, filterable audit trail |
 
-- `ORG_ADMIN`: allowed in own tenant
-- `AUDITOR`: allowed in own tenant
-- `SUPER_ADMIN`: allowed globally
-- `VIEWER`: denied
+> 📖 **Interactive docs** available at `/swagger-ui.html` when the server is running (powered by SpringDoc OpenAPI).
 
-## Security and Multi-Tenancy
+---
 
-- Tenant isolation is enforced in reads and writes for tenant-scoped entities.
-- Cross-tenant access is denied.
-- Errors follow standardized Problem Details responses.
-- Critical actions are audit logged.
+## Testing Strategy
 
-## Technology Stack
+The project maintains **15 test classes** covering both unit and integration layers, powered by **JUnit 5** and **Testcontainers** (real PostgreSQL — no mocks for data-layer tests).
 
-- Java 21
-- Spring Boot 3
-- Spring Security
-- Spring JDBC
-- PostgreSQL
-- Flyway
-- Apache Commons CSV
-- OpenAPI / Swagger
-- Spring Boot Actuator
-- JUnit 5
-- Testcontainers (PostgreSQL)
+| Test Layer | What's Covered |
+|---|---|
+| **Integration Tests** | Auth login, asset CRUD, assignments, catalog management, CSV imports, audit log read/write, user management |
+| **Unit Tests** | Authentication service logic, catalog services, user management, error handling (ProblemDetail factory), dev seed runner |
 
-## Local Development
+```bash
+# Run the full test suite against a real PostgreSQL container
+./gradlew clean check
+```
+
+CI runs automatically on every push and pull request via **GitHub Actions**.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Language** | Java 21 (LTS) |
+| **Framework** | Spring Boot 3.5, Spring Security, Spring JDBC |
+| **Auth** | JWT with `spring-security-oauth2-jose` |
+| **Database** | PostgreSQL 17 (Alpine) |
+| **Migrations** | Flyway |
+| **API Docs** | SpringDoc OpenAPI (Swagger UI) |
+| **Monitoring** | Spring Boot Actuator |
+| **Bulk Import** | Apache Commons CSV |
+| **Testing** | JUnit 5, Testcontainers |
+| **CI/CD** | GitHub Actions |
+| **Containerisation** | Docker Compose |
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- Java 21 JDK
-- Docker + Docker Compose
+- **Java 21 JDK** (Temurin recommended)
+- **Docker** + **Docker Compose**
 
-### Java 21 requirement
-
-The project toolchain is pinned to Java 21.
-
-- `build.gradle` sets `JavaLanguageVersion.of(21)`
-- `gradle.properties` resolves toolchains from `JAVA_HOME`
-- Auto-download is disabled
-
-Set `JAVA_HOME` to a Java 21 JDK before running Gradle.
-
-Windows PowerShell:
-
-```powershell
-$env:JAVA_HOME="C:\Program Files\Java\jdk-21"
-$env:Path="$env:JAVA_HOME\bin;$env:Path"
-```
-
-macOS / Linux:
+### 1. Clone & configure
 
 ```bash
-export JAVA_HOME=/path/to/jdk-21
-export PATH="$JAVA_HOME/bin:$PATH"
+git clone https://github.com/nicokaka/assetdock-api.git
+cd assetdock-api
+cp .env.example .env   # edit with your database credentials
 ```
 
-### Run locally
+### 2. Start the database
 
 ```bash
 docker compose up -d
-./gradlew test
+```
+
+### 3. Run tests
+
+```bash
+./gradlew clean check
+```
+
+### 4. Start the server
+
+```bash
 ./gradlew bootRun
 ```
 
-Windows equivalents:
+The API will be available at `http://localhost:8080`.  
+Swagger UI at `http://localhost:8080/swagger-ui.html`.
 
-- `.\gradlew.bat test`
-- `.\gradlew.bat bootRun`
+---
 
-## Testing
+## Project Roadmap
 
-Current test suite includes unit and integration tests for:
+### ✅ MVP — Completed
 
-- authentication
-- authorization
-- tenant isolation
-- users
-- catalogs
-- assets
-- assignments
-- CSV import jobs
-- audit logging
+- Multi-tenant asset inventory with full CRUD
+- JWT authentication and RBAC (5 roles)
+- Asset assignment flow with history
+- CSV bulk import with validation and partial success
+- Immutable audit logging with read endpoints
+- CI pipeline with Testcontainers
 
-## Out of Scope for MVP
+### 🔮 Future Enhancements
 
-- Frontend application
-- Refresh token flow
-- MFA
-- Microservices
-- Queue/background processing for import jobs
+- Refresh token rotation and token revocation
+- Multi-factor authentication (MFA / TOTP)
+- Background job processing for large imports
 - Generic import engine across domains
+- Frontend application (React / Next.js)
 
+---
+
+## Project Structure
+
+```
+assetdock-api/
+├── src/main/java/com/assetdock/api/
+│   ├── auth/           # Authentication & JWT
+│   ├── user/           # User lifecycle management
+│   ├── organization/   # Tenant management
+│   ├── catalog/        # Categories, manufacturers, locations
+│   ├── asset/          # Core asset CRUD
+│   ├── assignment/     # Asset assignment & history
+│   ├── importer/       # CSV bulk import engine
+│   ├── audit/          # Immutable audit trail
+│   ├── security/       # Shared security filters & config
+│   ├── common/         # Shared utilities & error handling
+│   └── config/         # Application configuration
+├── src/test/           # 15 test classes (unit + integration)
+├── docs/adr/           # Architecture Decision Records
+├── .github/workflows/  # CI pipeline
+├── docker-compose.yml  # Local PostgreSQL
+└── build.gradle        # Gradle build config
+```
+
+---
+
+<div align="center">
+
+**Built with 🔒 security at the core.**
+
+*Designed as a portfolio-grade backend demonstrating enterprise patterns:  
+multi-tenancy, RBAC, audit compliance, domain-driven design, and automated testing.*
+
+</div>

@@ -120,7 +120,7 @@ class AuditLogReadIntegrationTest {
 
 		mockMvc.perform(get("/audit-logs")
 				.header(AUTHORIZATION, bearer(token))
-				param("organizationId", ORG_2.toString()))
+				.param("organizationId", ORG_2.toString()))
 			.andExpect(status().isForbidden());
 	}
 
