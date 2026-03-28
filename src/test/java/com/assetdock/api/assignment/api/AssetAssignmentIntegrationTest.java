@@ -39,14 +39,18 @@ class AssetAssignmentIntegrationTest {
 	private static final UUID VIEWER_1 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
 	private static final UUID USER_1 = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 	private static final UUID USER_2 = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
+	private static final UUID USER_INACTIVE_1 = UUID.fromString("11111111-2222-3333-4444-555555555555");
+	private static final UUID USER_LOCKED_1 = UUID.fromString("66666666-7777-8888-9999-000000000000");
 	private static final UUID LOCATION_1 = UUID.fromString("10000000-0000-0000-0000-000000000001");
 	private static final UUID LOCATION_2 = UUID.fromString("20000000-0000-0000-0000-000000000002");
+	private static final UUID LOCATION_INACTIVE_1 = UUID.fromString("21000000-0000-0000-0000-000000000002");
 	private static final UUID CATEGORY_1 = UUID.fromString("30000000-0000-0000-0000-000000000003");
 	private static final UUID MANUFACTURER_1 = UUID.fromString("40000000-0000-0000-0000-000000000004");
 	private static final UUID ASSET_AVAILABLE_1 = UUID.fromString("50000000-0000-0000-0000-000000000005");
 	private static final UUID ASSET_ASSIGNED_1 = UUID.fromString("60000000-0000-0000-0000-000000000006");
 	private static final UUID ASSET_RETIRED_1 = UUID.fromString("70000000-0000-0000-0000-000000000007");
 	private static final UUID ASSET_LOST_1 = UUID.fromString("80000000-0000-0000-0000-000000000008");
+	private static final UUID ASSET_ARCHIVED_1 = UUID.fromString("81000000-0000-0000-0000-000000000008");
 	private static final UUID ASSET_ORG_2 = UUID.fromString("90000000-0000-0000-0000-000000000009");
 	private static final UUID ACTIVE_ASSIGNMENT_1 = UUID.fromString("a0000000-0000-0000-0000-00000000000a");
 
@@ -85,16 +89,20 @@ class AssetAssignmentIntegrationTest {
 		insertUser(VIEWER_1, ORG_1, "viewer1@assetdock.dev", "VIEWER");
 		insertUser(USER_1, ORG_1, "user1@assetdock.dev", "VIEWER");
 		insertUser(USER_2, ORG_2, "user2@assetdock.dev", "VIEWER");
+		insertUser(USER_INACTIVE_1, ORG_1, "inactive1@assetdock.dev", "VIEWER", "INACTIVE");
+		insertUser(USER_LOCKED_1, ORG_1, "locked1@assetdock.dev", "VIEWER", "LOCKED");
 
 		insertCategory(CATEGORY_1, ORG_1, "Laptops");
 		insertManufacturer(MANUFACTURER_1, ORG_1, "Lenovo");
 		insertLocation(LOCATION_1, ORG_1, "Warehouse");
 		insertLocation(LOCATION_2, ORG_2, "HQ");
+		insertLocation(LOCATION_INACTIVE_1, ORG_1, "Disabled site", false);
 
 		insertAsset(ASSET_AVAILABLE_1, ORG_1, "AST-001", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null, "IN_STOCK");
 		insertAsset(ASSET_ASSIGNED_1, ORG_1, "AST-002", CATEGORY_1, MANUFACTURER_1, LOCATION_1, USER_1, "ASSIGNED");
 		insertAsset(ASSET_RETIRED_1, ORG_1, "AST-003", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null, "RETIRED");
 		insertAsset(ASSET_LOST_1, ORG_1, "AST-004", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null, "LOST");
+		insertArchivedAsset(ASSET_ARCHIVED_1, ORG_1, "AST-005", CATEGORY_1, MANUFACTURER_1, LOCATION_1);
 		insertAsset(ASSET_ORG_2, ORG_2, "AST-900", null, null, LOCATION_2, USER_2, "ASSIGNED");
 
 		insertActiveAssignment(ACTIVE_ASSIGNMENT_1, ORG_1, ASSET_ASSIGNED_1, USER_1, LOCATION_1, ORG_ADMIN_1);
@@ -184,6 +192,15 @@ class AssetAssignmentIntegrationTest {
 	}
 
 	@Test
+	void crossTenantUnassignIsDenied() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets/{id}/unassign", ASSET_ORG_2)
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isNotFound());
+	}
+
+	@Test
 	void assignAndUnassignPersistAuditLog() throws Exception {
 		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 
@@ -237,6 +254,66 @@ class AssetAssignmentIntegrationTest {
 					}
 					""".formatted(USER_1)))
 			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void shouldNotAssignArchivedAssets() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets/{id}/assignments", ASSET_ARCHIVED_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "userId": "%s"
+					}
+					""".formatted(USER_1)))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("Archived assets cannot be assigned."));
+	}
+
+	@Test
+	void shouldNotAssignInactiveOrLockedUsers() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets/{id}/assignments", ASSET_AVAILABLE_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "userId": "%s"
+					}
+					""".formatted(USER_INACTIVE_1)))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("userId must reference an ACTIVE user."));
+
+		mockMvc.perform(post("/assets/{id}/assignments", ASSET_AVAILABLE_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "userId": "%s"
+					}
+					""".formatted(USER_LOCKED_1)))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("userId must reference an ACTIVE user."));
+	}
+
+	@Test
+	void shouldNotAssignToInactiveLocation() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets/{id}/assignments", ASSET_AVAILABLE_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "userId": "%s",
+					  "locationId": "%s"
+					}
+					""".formatted(USER_1, LOCATION_INACTIVE_1)))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.detail").value("locationId must reference an active location."));
 	}
 
 	@Test
@@ -305,6 +382,10 @@ class AssetAssignmentIntegrationTest {
 	}
 
 	private void insertUser(UUID userId, UUID organizationId, String email, String role) {
+		insertUser(userId, organizationId, email, role, "ACTIVE");
+	}
+
+	private void insertUser(UUID userId, UUID organizationId, String email, String role, String status) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO users (id, organization_id, email, full_name, password_hash, status)
@@ -315,7 +396,7 @@ class AssetAssignmentIntegrationTest {
 			email,
 			email,
 			passwordEncoder.encode("S3curePass!"),
-			"ACTIVE"
+			status
 		);
 
 		jdbcTemplate.update(
@@ -353,14 +434,19 @@ class AssetAssignmentIntegrationTest {
 	}
 
 	private void insertLocation(UUID id, UUID organizationId, String name) {
+		insertLocation(id, organizationId, name, true);
+	}
+
+	private void insertLocation(UUID id, UUID organizationId, String name, boolean active) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO locations (id, organization_id, name, active, created_at, updated_at)
-				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
 			id,
 			organizationId,
-			name
+			name,
+			active
 		);
 	}
 
@@ -374,6 +460,31 @@ class AssetAssignmentIntegrationTest {
 		UUID currentAssignedUserId,
 		String status
 	) {
+		insertAsset(id, organizationId, assetTag, categoryId, manufacturerId, locationId, currentAssignedUserId, status, null);
+	}
+
+	private void insertArchivedAsset(
+		UUID id,
+		UUID organizationId,
+		String assetTag,
+		UUID categoryId,
+		UUID manufacturerId,
+		UUID locationId
+	) {
+		insertAsset(id, organizationId, assetTag, categoryId, manufacturerId, locationId, null, "IN_STOCK", java.time.Instant.parse("2026-03-28T10:00:00Z"));
+	}
+
+	private void insertAsset(
+		UUID id,
+		UUID organizationId,
+		String assetTag,
+		UUID categoryId,
+		UUID manufacturerId,
+		UUID locationId,
+		UUID currentAssignedUserId,
+		String status,
+		java.time.Instant archivedAt
+	) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO assets (
@@ -386,10 +497,11 @@ class AssetAssignmentIntegrationTest {
 					current_location_id,
 					current_assigned_user_id,
 					status,
+					archived_at,
 					created_at,
 					updated_at
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::asset_status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::asset_status, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
 			id,
 			organizationId,
@@ -399,7 +511,8 @@ class AssetAssignmentIntegrationTest {
 			manufacturerId,
 			locationId,
 			currentAssignedUserId,
-			status
+			status,
+			archivedAt
 		);
 	}
 

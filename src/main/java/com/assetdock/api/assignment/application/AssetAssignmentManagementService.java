@@ -132,6 +132,10 @@ public class AssetAssignmentManagementService {
 	}
 
 	private void validateAssignableAsset(Asset asset) {
+		if (asset.archivedAt() != null) {
+			throw new InvalidAssignmentRequestException("Archived assets cannot be assigned.");
+		}
+
 		if (asset.status() == AssetStatus.RETIRED || asset.status() == AssetStatus.LOST) {
 			throw new InvalidAssignmentRequestException("Assets with status RETIRED or LOST cannot be assigned.");
 		}
@@ -147,11 +151,20 @@ public class AssetAssignmentManagementService {
 		if (user.organizationId() == null || !user.organizationId().equals(organizationId)) {
 			throw new InvalidAssignmentRequestException("userId must belong to the same organization as the asset.");
 		}
+		if (user.status() != com.assetdock.api.user.domain.UserStatus.ACTIVE) {
+			throw new InvalidAssignmentRequestException("userId must reference an ACTIVE user.");
+		}
 	}
 
 	private void validateLocation(UUID organizationId, UUID locationId) {
-		if (locationId != null && locationRepository.findByIdAndOrganizationId(locationId, organizationId).isEmpty()) {
-			throw new InvalidAssignmentRequestException("locationId must belong to the same organization as the asset.");
+		if (locationId == null) {
+			return;
+		}
+
+		var location = locationRepository.findByIdAndOrganizationId(locationId, organizationId)
+			.orElseThrow(() -> new InvalidAssignmentRequestException("locationId must belong to the same organization as the asset."));
+		if (!location.active()) {
+			throw new InvalidAssignmentRequestException("locationId must reference an active location.");
 		}
 	}
 
