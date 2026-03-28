@@ -130,9 +130,53 @@ public class UserManagementService {
 	}
 
 	@Transactional
+	public UserView updateRoles(AuthenticatedUserPrincipal actor, UUID userId, Set<UserRole> roles) {
+		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
+		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
+		validateRoleUpdate(actor, user, roles);
+
+		Set<UserRole> normalizedRoles = Set.copyOf(roles);
+		if (user.roles().equals(normalizedRoles)) {
+			return toView(user, actor);
+		}
+
+		guardAdministrativeContinuity(user, user.status(), normalizedRoles);
+
+		Instant updatedAt = Instant.now(clock);
+		User updatedUser = userRepository.updateRoles(userId, normalizedRoles, updatedAt);
+		LOGGER.info(
+			"user_management action=update_roles actor_id={} target_user_id={} previous_roles={} new_roles={}",
+			actor.userId(),
+			userId,
+			user.roles(),
+			updatedUser.roles()
+		);
+		auditLogService.record(new AuditLogCommand(
+			updatedUser.organizationId(),
+			actor.userId(),
+			AuditEventType.USER_ROLES_UPDATED,
+			"user",
+			updatedUser.id(),
+			"SUCCESS",
+			java.util.Map.of(
+				"previousRoles", user.roles().stream().map(Enum::name).sorted().toList(),
+				"newRoles", updatedUser.roles().stream().map(Enum::name).sorted().toList()
+			)
+		));
+
+		return toView(updatedUser, actor);
+	}
+
+	@Transactional
 	public UserView updateStatus(AuthenticatedUserPrincipal actor, UUID userId, UserStatus status) {
 		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
 		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
+
+		if (user.status() == status) {
+			return toView(user, actor);
+		}
+
+		guardAdministrativeContinuity(user, status, user.roles());
 
 		Instant updatedAt = Instant.now(clock);
 		User updatedUser = userRepository.updateStatus(userId, status, updatedAt);
@@ -145,7 +189,7 @@ public class UserManagementService {
 		auditLogService.record(new AuditLogCommand(
 			updatedUser.organizationId(),
 			actor.userId(),
-			status == UserStatus.ACTIVE ? AuditEventType.USER_UPDATED : AuditEventType.USER_DISABLED,
+			resolveStatusAuditEvent(user.status(), updatedUser.status()),
 			"user",
 			updatedUser.id(),
 			"SUCCESS",
@@ -203,6 +247,76 @@ public class UserManagementService {
 		if (!actor.isSuperAdmin() && roles.contains(UserRole.SUPER_ADMIN)) {
 			throw new org.springframework.security.access.AccessDeniedException("Only SUPER_ADMIN can assign SUPER_ADMIN.");
 		}
+	}
+
+	private void validateRoleUpdate(AuthenticatedUserPrincipal actor, User user, Set<UserRole> roles) {
+		validateRoles(roles, actor);
+
+		if (user.organizationId() == null) {
+			if (!roles.contains(UserRole.SUPER_ADMIN) || roles.size() > 1) {
+				throw new InvalidUserRequestException("Global users must keep the SUPER_ADMIN role only.");
+			}
+
+			return;
+		}
+
+		if (roles.contains(UserRole.SUPER_ADMIN)) {
+			throw new InvalidUserRequestException("Tenant-scoped users cannot be assigned the SUPER_ADMIN role.");
+		}
+	}
+
+	private void guardAdministrativeContinuity(User user, UserStatus requestedStatus, Set<UserRole> requestedRoles) {
+		if (isLastActiveOrgAdminBeingRemoved(user, requestedStatus, requestedRoles)) {
+			throw new InvalidUserRequestException("Cannot remove the last effective ORG_ADMIN from the organization.");
+		}
+
+		if (isLastActiveSuperAdminBeingRemoved(user, requestedStatus, requestedRoles)) {
+			throw new InvalidUserRequestException("Cannot remove the last effective SUPER_ADMIN.");
+		}
+	}
+
+	private boolean isLastActiveOrgAdminBeingRemoved(User user, UserStatus requestedStatus, Set<UserRole> requestedRoles) {
+		if (user.organizationId() == null) {
+			return false;
+		}
+
+		boolean currentlyEffective = user.status() == UserStatus.ACTIVE && user.roles().contains(UserRole.ORG_ADMIN);
+		boolean remainsEffective = requestedStatus == UserStatus.ACTIVE && requestedRoles.contains(UserRole.ORG_ADMIN);
+		if (!currentlyEffective || remainsEffective) {
+			return false;
+		}
+
+		return userRepository.countActiveUsersByOrganizationIdAndRole(user.organizationId(), UserRole.ORG_ADMIN) <= 1;
+	}
+
+	private boolean isLastActiveSuperAdminBeingRemoved(User user, UserStatus requestedStatus, Set<UserRole> requestedRoles) {
+		boolean currentlyEffective = user.status() == UserStatus.ACTIVE && user.roles().contains(UserRole.SUPER_ADMIN);
+		boolean remainsEffective = requestedStatus == UserStatus.ACTIVE && requestedRoles.contains(UserRole.SUPER_ADMIN);
+		if (!currentlyEffective || remainsEffective) {
+			return false;
+		}
+
+		return userRepository.countActiveUsersByRole(UserRole.SUPER_ADMIN) <= 1;
+	}
+
+	private AuditEventType resolveStatusAuditEvent(UserStatus previousStatus, UserStatus newStatus) {
+		if (newStatus == UserStatus.INACTIVE) {
+			return AuditEventType.USER_DISABLED;
+		}
+
+		if (newStatus == UserStatus.LOCKED) {
+			return AuditEventType.USER_LOCKED;
+		}
+
+		if (previousStatus == UserStatus.INACTIVE && newStatus == UserStatus.ACTIVE) {
+			return AuditEventType.USER_REACTIVATED;
+		}
+
+		if (previousStatus == UserStatus.LOCKED && newStatus == UserStatus.ACTIVE) {
+			return AuditEventType.USER_UNLOCKED;
+		}
+
+		return AuditEventType.USER_UPDATED;
 	}
 
 	private UserView toView(User user, AuthenticatedUserPrincipal actor) {

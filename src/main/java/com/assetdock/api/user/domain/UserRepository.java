@@ -3,6 +3,7 @@ package com.assetdock.api.user.domain;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface UserRepository {
@@ -20,6 +21,12 @@ public interface UserRepository {
 	User save(User user);
 
 	User updateStatus(UUID userId, UserStatus status, Instant updatedAt);
+
+	User updateRoles(UUID userId, Set<UserRole> roles, Instant updatedAt);
+
+	long countActiveUsersByOrganizationIdAndRole(UUID organizationId, UserRole role);
+
+	long countActiveUsersByRole(UserRole role);
 
 	void updateLastLoginAt(UUID userId, Instant lastLoginAt);
 }

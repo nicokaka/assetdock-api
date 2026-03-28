@@ -1,6 +1,8 @@
 package com.assetdock.api.user.api;
 
+import com.assetdock.api.user.domain.UserStatus;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -104,6 +107,35 @@ class UserManagementIntegrationTest {
 	}
 
 	@Test
+	void orgAdminShouldUpdateRolesInOwnOrganization() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/roles", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "roles": ["ASSET_MANAGER", "AUDITOR"]
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.roles[*]").value(containsInAnyOrder("ASSET_MANAGER", "AUDITOR")));
+
+		String eventType = jdbcTemplate.queryForObject(
+			"""
+				SELECT event_type
+				FROM audit_logs
+				WHERE resource_id = ?
+				ORDER BY occurred_at DESC
+				LIMIT 1
+				""",
+			String.class,
+			TARGET_USER_1
+		);
+		org.assertj.core.api.Assertions.assertThat(eventType).isEqualTo("USER_ROLES_UPDATED");
+	}
+
+	@Test
 	void shouldDenyCrossTenantRead() throws Exception {
 		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 
@@ -125,6 +157,140 @@ class UserManagementIntegrationTest {
 					}
 					"""))
 			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void shouldBlockSelfDemotionOfLastEffectiveOrgAdmin() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/roles", ORG_ADMIN_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "roles": ["VIEWER"]
+					}
+					"""))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void shouldBlockSelfLockOfLastEffectiveOrgAdmin() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/status", ORG_ADMIN_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "LOCKED"
+					}
+					"""))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void shouldBlockSelfDisableOfLastEffectiveOrgAdmin() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/status", ORG_ADMIN_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "INACTIVE"
+					}
+					"""))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void shouldDenyTenantPrivilegeEscalationToSuperAdmin() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/roles", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "roles": ["SUPER_ADMIN"]
+					}
+					"""))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void shouldUnlockUserAndPersistAuditEvent() throws Exception {
+		insertUser(
+			UUID.fromString("12121212-1212-1212-1212-121212121212"),
+			ORG_1,
+			"locked.user@assetdock.dev",
+			UserStatus.LOCKED,
+			"VIEWER"
+		);
+
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/status", UUID.fromString("12121212-1212-1212-1212-121212121212"))
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "ACTIVE"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("ACTIVE"));
+
+		String eventType = jdbcTemplate.queryForObject(
+			"""
+				SELECT event_type
+				FROM audit_logs
+				WHERE resource_id = ?
+				ORDER BY occurred_at DESC
+				LIMIT 1
+				""",
+			String.class,
+			UUID.fromString("12121212-1212-1212-1212-121212121212")
+		);
+		org.assertj.core.api.Assertions.assertThat(eventType).isEqualTo("USER_UNLOCKED");
+	}
+
+	@Test
+	void shouldReactivateUserAndPersistAuditEvent() throws Exception {
+		insertUser(
+			UUID.fromString("34343434-3434-3434-3434-343434343434"),
+			ORG_1,
+			"inactive.user@assetdock.dev",
+			UserStatus.INACTIVE,
+			"VIEWER"
+		);
+
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}/status", UUID.fromString("34343434-3434-3434-3434-343434343434"))
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "ACTIVE"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("ACTIVE"));
+
+		String eventType = jdbcTemplate.queryForObject(
+			"""
+				SELECT event_type
+				FROM audit_logs
+				WHERE resource_id = ?
+				ORDER BY occurred_at DESC
+				LIMIT 1
+				""",
+			String.class,
+			UUID.fromString("34343434-3434-3434-3434-343434343434")
+		);
+		org.assertj.core.api.Assertions.assertThat(eventType).isEqualTo("USER_REACTIVATED");
 	}
 
 	@Test
@@ -193,6 +359,10 @@ class UserManagementIntegrationTest {
 	}
 
 	private void insertUser(UUID userId, UUID organizationId, String email, String role) {
+		insertUser(userId, organizationId, email, UserStatus.ACTIVE, role);
+	}
+
+	private void insertUser(UUID userId, UUID organizationId, String email, UserStatus status, String... roles) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO users (id, organization_id, email, full_name, password_hash, status)
@@ -203,20 +373,21 @@ class UserManagementIntegrationTest {
 			email,
 			email,
 			passwordEncoder.encode("S3curePass!"),
-			"ACTIVE"
+			status.name()
 		);
 
-		jdbcTemplate.update(
+		Stream.of(roles).forEach(role -> jdbcTemplate.update(
 			"""
 				INSERT INTO user_roles (user_id, role)
 				VALUES (?, ?::user_role)
 				""",
 			userId,
 			role
-		);
+		));
 	}
 
 	private void cleanDatabase() {
+		jdbcTemplate.update("DELETE FROM audit_logs");
 		jdbcTemplate.update("DELETE FROM user_roles");
 		jdbcTemplate.update("DELETE FROM users");
 		jdbcTemplate.update("DELETE FROM organizations");

@@ -134,6 +134,70 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
+	public User updateRoles(UUID userId, Set<UserRole> roles, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("updatedAt", updatedAt)
+			.param("userId", userId)
+			.update();
+
+		jdbcClient.sql("""
+			DELETE FROM user_roles
+			WHERE user_id = :userId
+			""")
+			.param("userId", userId)
+			.update();
+
+		roles.forEach(role -> jdbcClient.sql("""
+			INSERT INTO user_roles (user_id, role, created_at)
+			VALUES (:userId, :role, :createdAt)
+			""")
+			.param("userId", userId)
+			.param("role", role.name())
+			.param("createdAt", updatedAt)
+			.update());
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
+	public long countActiveUsersByOrganizationIdAndRole(UUID organizationId, UserRole role) {
+		Long count = jdbcClient.sql("""
+			SELECT COUNT(*)
+			FROM users u
+			INNER JOIN user_roles ur ON ur.user_id = u.id
+			WHERE u.organization_id = :organizationId
+			  AND u.status = 'ACTIVE'
+			  AND ur.role = :role
+			""")
+			.param("organizationId", organizationId)
+			.param("role", role.name())
+			.query(Long.class)
+			.single();
+
+		return count == null ? 0 : count;
+	}
+
+	@Override
+	public long countActiveUsersByRole(UserRole role) {
+		Long count = jdbcClient.sql("""
+			SELECT COUNT(*)
+			FROM users u
+			INNER JOIN user_roles ur ON ur.user_id = u.id
+			WHERE u.status = 'ACTIVE'
+			  AND ur.role = :role
+			""")
+			.param("role", role.name())
+			.query(Long.class)
+			.single();
+
+		return count == null ? 0 : count;
+	}
+
+	@Override
 	public void updateLastLoginAt(UUID userId, Instant lastLoginAt) {
 		jdbcClient.sql("""
 			UPDATE users

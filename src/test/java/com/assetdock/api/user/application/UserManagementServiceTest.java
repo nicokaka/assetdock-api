@@ -138,6 +138,73 @@ class UserManagementServiceTest {
 	}
 
 	@Test
+	void shouldUpdateRolesForTenantUser() {
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.ORG_ADMIN)
+		);
+		User currentUser = user(USER_ID, ORG_1, UserStatus.ACTIVE, Set.of(UserRole.VIEWER));
+		User updatedUser = user(USER_ID, ORG_1, UserStatus.ACTIVE, Set.of(UserRole.ASSET_MANAGER, UserRole.AUDITOR));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(currentUser));
+		when(userRepository.updateRoles(eq(USER_ID), eq(Set.of(UserRole.ASSET_MANAGER, UserRole.AUDITOR)), any()))
+			.thenReturn(updatedUser);
+
+		UserView result = userManagementService.updateRoles(actor, USER_ID, Set.of(UserRole.ASSET_MANAGER, UserRole.AUDITOR));
+
+		assertThat(result.roles()).containsExactlyInAnyOrder(UserRole.ASSET_MANAGER, UserRole.AUDITOR);
+		verify(userRepository).updateRoles(eq(USER_ID), eq(Set.of(UserRole.ASSET_MANAGER, UserRole.AUDITOR)), any());
+	}
+
+	@Test
+	void shouldPreventRemovingLastEffectiveOrgAdminByRoleChange() {
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.ORG_ADMIN)
+		);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(USER_ID, ORG_1, UserStatus.ACTIVE)));
+		when(userRepository.countActiveUsersByOrganizationIdAndRole(ORG_1, UserRole.ORG_ADMIN)).thenReturn(1L);
+
+		assertThatThrownBy(() -> userManagementService.updateRoles(actor, USER_ID, Set.of(UserRole.VIEWER)))
+			.isInstanceOf(InvalidUserRequestException.class)
+			.hasMessage("Cannot remove the last effective ORG_ADMIN from the organization.");
+
+		verify(userRepository, never()).updateRoles(any(), any(), any());
+	}
+
+	@Test
+	void shouldPreventLockingLastEffectiveOrgAdmin() {
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.ORG_ADMIN)
+		);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(USER_ID, ORG_1, UserStatus.ACTIVE)));
+		when(userRepository.countActiveUsersByOrganizationIdAndRole(ORG_1, UserRole.ORG_ADMIN)).thenReturn(1L);
+
+		assertThatThrownBy(() -> userManagementService.updateStatus(actor, USER_ID, UserStatus.LOCKED))
+			.isInstanceOf(InvalidUserRequestException.class)
+			.hasMessage("Cannot remove the last effective ORG_ADMIN from the organization.");
+
+		verify(userRepository, never()).updateStatus(any(), any(), any());
+	}
+
+	@Test
+	void shouldPreventAssigningSuperAdminToTenantUser() {
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.ORG_ADMIN)
+		);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(USER_ID, ORG_1, UserStatus.ACTIVE, Set.of(UserRole.VIEWER))));
+
+		assertThatThrownBy(() -> userManagementService.updateRoles(actor, USER_ID, Set.of(UserRole.SUPER_ADMIN)))
+			.isInstanceOf(AccessDeniedException.class)
+			.hasMessage("Only SUPER_ADMIN can assign SUPER_ADMIN.");
+	}
+
+	@Test
 	void auditorShouldReceiveLimitedPayload() {
 		AuthenticatedUserPrincipal actor = principal(
 			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -189,6 +256,10 @@ class UserManagementServiceTest {
 	}
 
 	private User user(UUID userId, UUID organizationId, UserStatus status) {
+		return user(userId, organizationId, status, Set.of(UserRole.ORG_ADMIN));
+	}
+
+	private User user(UUID userId, UUID organizationId, UserStatus status, Set<UserRole> roles) {
 		return new User(
 			userId,
 			organizationId,
@@ -196,7 +267,7 @@ class UserManagementServiceTest {
 			"AssetDock User",
 			"$2a$10$abcdefghijklmnopqrstuvwxyzABCDE1234567890",
 			status,
-			Set.of(UserRole.ORG_ADMIN),
+			roles,
 			null,
 			NOW.minusSeconds(3600),
 			NOW.minusSeconds(1800)
