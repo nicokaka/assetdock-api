@@ -17,6 +17,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -77,6 +78,7 @@ class AuthLoginIntegrationTest {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -97,6 +99,7 @@ class AuthLoginIntegrationTest {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -113,6 +116,7 @@ class AuthLoginIntegrationTest {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!", 2);
 
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -133,6 +137,7 @@ class AuthLoginIntegrationTest {
 		insertUser("INACTIVE", "user@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -149,6 +154,7 @@ class AuthLoginIntegrationTest {
 		insertUser("LOCKED", "user@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -165,6 +171,7 @@ class AuthLoginIntegrationTest {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!", 2);
 
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{

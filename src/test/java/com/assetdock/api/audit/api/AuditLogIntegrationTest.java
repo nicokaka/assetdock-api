@@ -18,6 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -73,6 +74,7 @@ class AuditLogIntegrationTest {
 	@Test
 	void successfulLoginShouldPersistAuditEvent() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -94,6 +96,7 @@ class AuditLogIntegrationTest {
 	@Test
 	void invalidLoginShouldPersistAuditEvent() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -171,6 +174,7 @@ class AuditLogIntegrationTest {
 
 	private String login(String email, String password) throws Exception {
 		String response = mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{

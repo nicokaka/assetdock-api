@@ -24,8 +24,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
+	"security.throttle.login.enabled=true",
 	"security.throttle.login.max-requests=2",
 	"security.throttle.login.window=PT10M",
+	"security.throttle.asset-import.enabled=false",
 	"security.throttle.asset-import.max-requests=100",
 	"security.auth.max-failed-login-attempts=10"
 })

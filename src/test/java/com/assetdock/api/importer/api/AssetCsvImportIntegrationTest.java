@@ -20,6 +20,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -101,6 +102,7 @@ class AssetCsvImportIntegrationTest {
 
 		String response = mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -132,6 +134,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -153,6 +156,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isForbidden());
@@ -169,6 +173,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(auditorToken))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isForbidden());
@@ -199,6 +204,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -224,6 +230,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated());
@@ -245,6 +252,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isBadRequest())
@@ -266,6 +274,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -285,6 +294,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -303,6 +313,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -321,6 +332,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -343,6 +355,7 @@ class AssetCsvImportIntegrationTest {
 
 		mockMvc.perform(multipart("/imports/assets/csv")
 				.file(file)
+				.with(uniqueClientIp())
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(MULTIPART_FORM_DATA))
 			.andExpect(status().isCreated())
@@ -373,6 +386,7 @@ class AssetCsvImportIntegrationTest {
 
 	private String login(String email, String password) throws Exception {
 		String response = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
 				.content("""
 					{
