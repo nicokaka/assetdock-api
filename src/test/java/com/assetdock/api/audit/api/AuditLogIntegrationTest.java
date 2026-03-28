@@ -1,6 +1,7 @@
 package com.assetdock.api.audit.api;
 
-import com.assetdock.api.support.TestJwtTokens;
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.domain.UserRole;
 import java.util.Map;
 import java.util.UUID;
@@ -51,6 +52,9 @@ class AuditLogIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private JwtTokenService jwtTokenService;
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
@@ -176,9 +180,16 @@ class AuditLogIntegrationTest {
 
 	private String login(String email, String password) {
 		return switch (email) {
-			case "orgadmin1@assetdock.dev" -> TestJwtTokens.issue(ORG_ADMIN_1, ORG_1, email, java.util.Set.of(UserRole.ORG_ADMIN));
+			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
 			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
 		};
+	}
+
+	private String issueToken(UUID userId, UUID organizationId, String email, UserRole... roles) {
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(userId, organizationId, email, java.util.Set.of(roles)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private String bearer(String token) {

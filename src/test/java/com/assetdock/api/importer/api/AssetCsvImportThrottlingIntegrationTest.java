@@ -1,6 +1,7 @@
 package com.assetdock.api.importer.api;
 
-import com.assetdock.api.support.TestJwtTokens;
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.domain.UserRole;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -66,6 +67,9 @@ class AssetCsvImportThrottlingIntegrationTest {
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
+	@Autowired
+	private JwtTokenService jwtTokenService;
+
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -129,7 +133,10 @@ class AssetCsvImportThrottlingIntegrationTest {
 	}
 
 	private String login(String email, String password) {
-		return TestJwtTokens.issue(USER_ID, ORGANIZATION_ID, email, java.util.Set.of(UserRole.ORG_ADMIN));
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(USER_ID, ORGANIZATION_ID, email, java.util.Set.of(UserRole.ORG_ADMIN)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private MockMultipartFile csvFile(String fileName, String content) {

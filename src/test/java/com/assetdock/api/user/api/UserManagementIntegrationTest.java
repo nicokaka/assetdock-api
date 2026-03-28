@@ -1,6 +1,7 @@
 package com.assetdock.api.user.api;
 
-import com.assetdock.api.support.TestJwtTokens;
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.domain.UserRole;
 import com.assetdock.api.user.domain.UserStatus;
 import java.util.UUID;
@@ -62,6 +63,9 @@ class UserManagementIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private JwtTokenService jwtTokenService;
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
@@ -383,12 +387,19 @@ class UserManagementIntegrationTest {
 
 	private String login(String email, String password) {
 		return switch (email) {
-			case "orgadmin1@assetdock.dev" -> TestJwtTokens.issue(ORG_ADMIN_1, ORG_1, email, java.util.Set.of(UserRole.ORG_ADMIN));
-			case "auditor1@assetdock.dev" -> TestJwtTokens.issue(AUDITOR_1, ORG_1, email, java.util.Set.of(UserRole.AUDITOR));
-			case "viewer1@assetdock.dev" -> TestJwtTokens.issue(VIEWER_1, ORG_1, email, java.util.Set.of(UserRole.VIEWER));
-			case "manager1@assetdock.dev" -> TestJwtTokens.issue(ASSET_MANAGER_1, ORG_1, email, java.util.Set.of(UserRole.ASSET_MANAGER));
+			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
+			case "auditor1@assetdock.dev" -> issueToken(AUDITOR_1, ORG_1, email, UserRole.AUDITOR);
+			case "viewer1@assetdock.dev" -> issueToken(VIEWER_1, ORG_1, email, UserRole.VIEWER);
+			case "manager1@assetdock.dev" -> issueToken(ASSET_MANAGER_1, ORG_1, email, UserRole.ASSET_MANAGER);
 			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
 		};
+	}
+
+	private String issueToken(UUID userId, UUID organizationId, String email, UserRole... roles) {
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(userId, organizationId, email, java.util.Set.of(roles)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private String bearer(String token) {
