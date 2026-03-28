@@ -544,7 +544,7 @@ class AssetAssignmentIntegrationTest {
 					created_at,
 					updated_at
 				)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::asset_status, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS asset_status), CAST(? AS TIMESTAMPTZ), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
 			id,
 			organizationId,

@@ -47,7 +47,7 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 				:id,
 				:organizationId,
 				:uploadedByUserId,
-				:status,
+				CAST(:status AS asset_import_job_status),
 				:fileName,
 				:totalRows,
 				:processedRows,
@@ -81,7 +81,7 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 	public AssetImportJob update(AssetImportJob job) {
 		jdbcClient.sql("""
 			UPDATE asset_import_jobs
-			SET status = :status,
+			SET status = CAST(:status AS asset_import_job_status),
 			    total_rows = :totalRows,
 			    processed_rows = :processedRows,
 			    success_count = :successCount,

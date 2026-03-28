@@ -48,7 +48,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 				:id,
 				:organizationId,
 				:actorUserId,
-				:eventType,
+				CAST(:eventType AS audit_event_type),
 				:resourceType,
 				:resourceId,
 				:outcome,
@@ -121,7 +121,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			sqlBuilder.append(" AND organization_id = :organizationId");
 		}
 		if (eventType != null) {
-			sqlBuilder.append(" AND event_type = :eventType");
+			sqlBuilder.append(" AND event_type = CAST(:eventType AS audit_event_type)");
 		}
 		if (from != null) {
 			sqlBuilder.append(" AND occurred_at >= :from");

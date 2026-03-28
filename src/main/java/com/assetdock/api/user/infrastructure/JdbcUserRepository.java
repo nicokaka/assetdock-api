@@ -98,7 +98,7 @@ public class JdbcUserRepository implements UserRepository {
 	public User save(User user) {
 		jdbcClient.sql("""
 			INSERT INTO users (id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at)
-			VALUES (:id, :organizationId, :email, :fullName, :passwordHash, :status, :lastLoginAt, :createdAt, :updatedAt)
+			VALUES (:id, :organizationId, :email, :fullName, :passwordHash, CAST(:status AS user_status), :lastLoginAt, :createdAt, :updatedAt)
 			""")
 			.param("id", user.id())
 			.param("organizationId", user.organizationId())
@@ -113,7 +113,7 @@ public class JdbcUserRepository implements UserRepository {
 
 		user.roles().forEach(role -> jdbcClient.sql("""
 			INSERT INTO user_roles (user_id, role, created_at)
-			VALUES (:userId, :role, :createdAt)
+			VALUES (:userId, CAST(:role AS user_role), :createdAt)
 			""")
 			.param("userId", user.id())
 			.param("role", role.name())
@@ -127,7 +127,7 @@ public class JdbcUserRepository implements UserRepository {
 	public User updateStatus(UUID userId, UserStatus status, Instant updatedAt) {
 		jdbcClient.sql("""
 			UPDATE users
-			SET status = :status,
+			SET status = CAST(:status AS user_status),
 			    updated_at = :updatedAt
 			WHERE id = :userId
 			""")
@@ -159,7 +159,7 @@ public class JdbcUserRepository implements UserRepository {
 
 		roles.forEach(role -> jdbcClient.sql("""
 			INSERT INTO user_roles (user_id, role, created_at)
-			VALUES (:userId, :role, :createdAt)
+			VALUES (:userId, CAST(:role AS user_role), :createdAt)
 			""")
 			.param("userId", userId)
 			.param("role", role.name())
@@ -207,7 +207,7 @@ public class JdbcUserRepository implements UserRepository {
 			INNER JOIN user_roles ur ON ur.user_id = u.id
 			WHERE u.organization_id = :organizationId
 			  AND u.status = 'ACTIVE'
-			  AND ur.role = :role
+			  AND ur.role = CAST(:role AS user_role)
 			""")
 			.param("organizationId", organizationId)
 			.param("role", role.name())
@@ -224,7 +224,7 @@ public class JdbcUserRepository implements UserRepository {
 			FROM users u
 			INNER JOIN user_roles ur ON ur.user_id = u.id
 			WHERE u.status = 'ACTIVE'
-			  AND ur.role = :role
+			  AND ur.role = CAST(:role AS user_role)
 			""")
 			.param("role", role.name())
 			.query(Long.class)
