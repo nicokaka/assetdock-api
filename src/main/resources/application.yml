@@ -72,6 +72,7 @@ security:
     issuer: ${JWT_ISSUER:assetdock-api}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
   throttle:
+    enabled: ${THROTTLE_ENABLED:true}
     login:
       enabled: ${LOGIN_THROTTLE_ENABLED:true}
       max-requests: ${LOGIN_THROTTLE_MAX_REQUESTS:10}

@@ -30,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
+	"security.throttle.enabled=true",
 	"security.throttle.login.enabled=false",
 	"security.throttle.login.max-requests=100",
 	"security.throttle.asset-import.enabled=true",

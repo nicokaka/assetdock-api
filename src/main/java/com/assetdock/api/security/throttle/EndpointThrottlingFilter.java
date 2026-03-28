@@ -47,7 +47,7 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !isLoginRequest(request) && !isImportRequest(request);
+		return !throttlingProperties.enabled() || (!isLoginRequest(request) && !isImportRequest(request));
 	}
 
 	@Override

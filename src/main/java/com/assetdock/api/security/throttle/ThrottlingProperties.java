@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "security.throttle")
 public record ThrottlingProperties(
+	boolean enabled,
 	EndpointPolicy login,
 	EndpointPolicy assetImport
 ) {

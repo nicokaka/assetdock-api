@@ -13,6 +13,7 @@ springdoc:
 
 security:
   throttle:
+    enabled: false
     login:
       enabled: false
     asset-import:
