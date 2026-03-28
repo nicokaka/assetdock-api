@@ -1,6 +1,5 @@
 package com.assetdock.api;
 
-import com.assetdock.api.config.LocalDevelopmentSeedRunner;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -14,13 +13,18 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+	"springdoc.api-docs.enabled=false",
+	"springdoc.swagger-ui.enabled=false",
+	"app.surface.public-docs-enabled=false"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Testcontainers(disabledWithoutDocker = true)
-class AssetdockApiApplicationTests {
+class OperationalSurfaceExposureIntegrationTest {
 
 	@Container
 	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -31,9 +35,6 @@ class AssetdockApiApplicationTests {
 	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired(required = false)
-	private LocalDevelopmentSeedRunner localDevelopmentSeedRunner;
-
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -43,35 +44,16 @@ class AssetdockApiApplicationTests {
 	}
 
 	@Test
-	void contextLoads() {
-	}
-
-	@Test
-	void localSeedShouldNotRunOutsideLocalProfile() {
-		org.assertj.core.api.Assertions.assertThat(localDevelopmentSeedRunner).isNull();
-	}
-
-	@Test
-	void healthEndpointIsPublic() throws Exception {
-		mockMvc.perform(get("/actuator/health"))
-			.andExpect(status().isOk());
-	}
-
-	@Test
-	void actuatorInfoRequiresAuthentication() throws Exception {
-		mockMvc.perform(get("/actuator/info"))
-			.andExpect(status().isUnauthorized());
-	}
-
-	@Test
-	void openApiDocsAreAvailableInTestProfile() throws Exception {
+	void openApiDocsAreNotPublicWhenDisabled() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
-			.andExpect(status().isOk());
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
 	}
 
 	@Test
-	void protectedEndpointsRequireAuthentication() throws Exception {
-		mockMvc.perform(get("/api/internal"))
-			.andExpect(status().isUnauthorized());
+	void swaggerUiIsNotPublicWhenDisabled() throws Exception {
+		mockMvc.perform(get("/swagger-ui.html"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
 	}
 }

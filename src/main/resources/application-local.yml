@@ -3,7 +3,14 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/assetdock}
     username: ${DB_USERNAME:assetdock}
     password: ${DB_PASSWORD}
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
 app:
+  surface:
+    public-docs-enabled: true
   seed:
     enabled: ${LOCAL_SEED_ENABLED:false}
     organization-name: ${LOCAL_SEED_ORG_NAME:}

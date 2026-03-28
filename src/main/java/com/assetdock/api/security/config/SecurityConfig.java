@@ -1,6 +1,9 @@
 package com.assetdock.api.security.config;
 
 import com.assetdock.api.security.auth.JwtToAuthenticatedUserConverter;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,18 +12,18 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 public class SecurityConfig {
 
-	private static final String[] PUBLIC_ENDPOINTS = {
-		"/actuator/health",
-		"/actuator/info",
-		"/api/v1/auth/login",
-		"/swagger-ui.html",
-		"/swagger-ui/**",
-		"/v3/api-docs/**"
-	};
+	private final boolean publicDocsEnabled;
+
+	public SecurityConfig(@Value("${app.surface.public-docs-enabled:false}") boolean publicDocsEnabled) {
+		this.publicDocsEnabled = publicDocsEnabled;
+	}
 
 	@Bean
 	SecurityFilterChain securityFilterChain(
@@ -34,16 +37,35 @@ public class SecurityConfig {
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.logout(AbstractHttpConfigurer::disable)
+			.requestCache(AbstractHttpConfigurer::disable)
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+			.headers(headers -> headers
+				.contentTypeOptions(withDefaults())
+				.frameOptions(frame -> frame.deny())
+				.referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
+				.cacheControl(withDefaults()))
 			.exceptionHandling(exceptions -> exceptions
 				.authenticationEntryPoint(securityProblemSupport)
 				.accessDeniedHandler(securityProblemSupport))
 			.authorizeHttpRequests(authorize -> authorize
-				.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+				.requestMatchers(publicEndpoints()).permitAll()
 				.anyRequest().authenticated())
 			.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtToAuthenticatedUserConverter)));
 
 		return http.build();
+	}
+
+	private String[] publicEndpoints() {
+		List<String> endpoints = new ArrayList<>();
+		endpoints.add("/actuator/health");
+		endpoints.add("/api/v1/auth/login");
+		if (publicDocsEnabled) {
+			endpoints.add("/swagger-ui.html");
+			endpoints.add("/swagger-ui/**");
+			endpoints.add("/v3/api-docs/**");
+		}
+
+		return endpoints.toArray(String[]::new);
 	}
 
 	@Bean

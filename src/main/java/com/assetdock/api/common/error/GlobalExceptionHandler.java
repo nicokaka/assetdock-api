@@ -402,9 +402,9 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(ErrorResponseException.class)
 	ResponseEntity<ProblemDetail> handleFrameworkError(ErrorResponseException exception, WebRequest request) {
 		HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
-		String detail = exception.getBody().getDetail() != null
-			? exception.getBody().getDetail()
-			: "The request could not be processed.";
+		String detail = status.is4xxClientError()
+			? "The request could not be processed."
+			: "An unexpected internal error occurred.";
 
 		ProblemDetail problemDetail = problemDetailFactory.create(
 			status,

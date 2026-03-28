@@ -25,9 +25,16 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
 management:
   endpoints:
     web:
+      discovery:
+        enabled: false
       exposure:
         include: health,info
   endpoint:
@@ -37,12 +44,17 @@ management:
       show-details: never
 springdoc:
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
     operations-sorter: alpha
     tags-sorter: alpha
   api-docs:
+    enabled: false
     path: /v3/api-docs
   show-actuator: false
+app:
+  surface:
+    public-docs-enabled: ${PUBLIC_DOCS_ENABLED:false}
 info:
   app:
     name: ${spring.application.name}
