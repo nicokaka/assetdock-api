@@ -224,8 +224,9 @@ class UserManagementIntegrationTest {
 
 	@Test
 	void shouldUnlockUserAndPersistAuditEvent() throws Exception {
+		UUID lockedUserId = UUID.fromString("56565656-5656-5656-5656-565656565656");
 		insertUser(
-			UUID.fromString("12121212-1212-1212-1212-121212121212"),
+			lockedUserId,
 			ORG_1,
 			"locked.user@assetdock.dev",
 			UserStatus.LOCKED,
@@ -234,7 +235,7 @@ class UserManagementIntegrationTest {
 
 		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(patch("/users/{id}/status", UUID.fromString("12121212-1212-1212-1212-121212121212"))
+		mockMvc.perform(patch("/users/{id}/status", lockedUserId)
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -252,9 +253,9 @@ class UserManagementIntegrationTest {
 				WHERE resource_id = ?
 				ORDER BY occurred_at DESC
 				LIMIT 1
-				""",
+			""",
 			String.class,
-			UUID.fromString("12121212-1212-1212-1212-121212121212")
+			lockedUserId
 		);
 		org.assertj.core.api.Assertions.assertThat(eventType).isEqualTo("USER_UNLOCKED");
 	}

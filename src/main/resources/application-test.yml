@@ -10,6 +10,13 @@ springdoc:
     enabled: true
   api-docs:
     enabled: true
+
+security:
+  throttle:
+    login:
+      enabled: false
+    asset-import:
+      enabled: false
 app:
   surface:
     public-docs-enabled: true
