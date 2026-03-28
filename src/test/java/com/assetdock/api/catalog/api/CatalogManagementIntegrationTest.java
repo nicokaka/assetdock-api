@@ -214,6 +214,32 @@ class CatalogManagementIntegrationTest {
 	}
 
 	@Test
+	void viewerAndAuditorCannotMutateCatalogs() throws Exception {
+		String viewerToken = login("viewer1@assetdock.dev", "S3curePass!");
+		String auditorToken = login("auditor1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/categories")
+				.header(AUTHORIZATION, bearer(viewerToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "name": "Blocked Viewer Category"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(patch("/manufacturers/{id}", MANUFACTURER_1)
+				.header(AUTHORIZATION, bearer(auditorToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void crossTenantCatalogsAreIsolated() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 

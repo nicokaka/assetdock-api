@@ -36,6 +36,7 @@ class AuditLogReadIntegrationTest {
 	private static final UUID ORG_ADMIN_1 = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 	private static final UUID AUDITOR_1 = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 	private static final UUID VIEWER_1 = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+	private static final UUID ASSET_MANAGER_1 = UUID.fromString("abababab-abab-abab-abab-abababababab");
 	private static final UUID USER_2 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
 	private static final UUID AUDIT_LOG_1 = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 	private static final UUID AUDIT_LOG_2 = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
@@ -72,6 +73,7 @@ class AuditLogReadIntegrationTest {
 		insertUser(ORG_ADMIN_1, ORG_1, "orgadmin1@assetdock.dev", "ORG_ADMIN");
 		insertUser(AUDITOR_1, ORG_1, "auditor1@assetdock.dev", "AUDITOR");
 		insertUser(VIEWER_1, ORG_1, "viewer1@assetdock.dev", "VIEWER");
+		insertUser(ASSET_MANAGER_1, ORG_1, "manager1@assetdock.dev", "ASSET_MANAGER");
 		insertUser(USER_2, ORG_2, "user2@assetdock.dev", "ORG_ADMIN");
 
 		insertAuditLog(AUDIT_LOG_1, ORG_1, ORG_ADMIN_1, "LOGIN_SUCCESS", "2026-03-01T00:00:00Z");
@@ -108,6 +110,15 @@ class AuditLogReadIntegrationTest {
 	@Test
 	void viewerCannotReadAuditLogs() throws Exception {
 		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/audit-logs")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void assetManagerCannotReadAuditLogs() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(get("/audit-logs")
 				.header(AUTHORIZATION, bearer(token)))

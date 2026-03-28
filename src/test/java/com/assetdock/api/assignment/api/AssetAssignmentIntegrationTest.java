@@ -183,6 +183,26 @@ class AssetAssignmentIntegrationTest {
 	}
 
 	@Test
+	void viewerAndAuditorCannotMutateAssignments() throws Exception {
+		String viewerToken = login("viewer1@assetdock.dev", "S3curePass!");
+		String auditorToken = login("auditor1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets/{id}/assignments", ASSET_AVAILABLE_1)
+				.header(AUTHORIZATION, bearer(viewerToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "userId": "%s"
+					}
+					""".formatted(USER_1)))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(post("/assets/{id}/unassign", ASSET_ASSIGNED_1)
+				.header(AUTHORIZATION, bearer(auditorToken)))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void crossTenantAccessToAssignmentsIsDenied() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 

@@ -234,6 +234,33 @@ class AssetManagementIntegrationTest {
 	}
 
 	@Test
+	void viewerAndAuditorCannotMutateAssets() throws Exception {
+		String viewerToken = login("viewer1@assetdock.dev", "S3curePass!");
+		String auditorToken = login("auditor1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets")
+				.header(AUTHORIZATION, bearer(viewerToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "assetTag": "AST-BLOCK-1",
+					  "displayName": "Blocked asset"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(patch("/assets/{id}/status", ASSET_1)
+				.header(AUTHORIZATION, bearer(auditorToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "ASSIGNED"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void crossTenantAccessToAssetsIsDenied() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 

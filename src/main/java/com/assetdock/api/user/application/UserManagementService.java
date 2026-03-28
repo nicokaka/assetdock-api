@@ -107,13 +107,16 @@ public class UserManagementService {
 
 	@Transactional(readOnly = true)
 	public List<UserView> listUsers(AuthenticatedUserPrincipal actor) {
-		List<User> users = actor.isSuperAdmin()
-			? userRepository.findAll()
-			: userRepository.findAllByOrganizationId(requireActorOrganizationId(actor));
-
-		if (!actor.isSuperAdmin() && !actor.hasRole(UserRole.ORG_ADMIN) && !actor.hasRole(UserRole.AUDITOR)) {
-			throw new org.springframework.security.access.AccessDeniedException("You do not have permission to read users.");
+		if (actor.isSuperAdmin()) {
+			return userRepository.findAll()
+				.stream()
+				.map(user -> toView(user, actor))
+				.toList();
 		}
+
+		UUID actorOrganizationId = requireActorOrganizationId(actor);
+		tenantAccessService.requireUserReadAccess(actor, actorOrganizationId);
+		List<User> users = userRepository.findAllByOrganizationId(actorOrganizationId);
 
 		return users.stream()
 			.map(user -> {

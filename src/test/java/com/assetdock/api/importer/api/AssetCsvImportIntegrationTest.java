@@ -159,6 +159,26 @@ class AssetCsvImportIntegrationTest {
 	}
 
 	@Test
+	void auditorCannotImportAndViewerCannotReadImportJobs() throws Exception {
+		String auditorToken = login("auditor1@assetdock.dev", "S3curePass!");
+		String viewerToken = login("viewer1@assetdock.dev", "S3curePass!");
+		MockMultipartFile file = csvFile("blocked.csv", """
+			asset_tag,display_name
+			AST-CSV-BLOCK,Blocked
+			""");
+
+		mockMvc.perform(multipart("/imports/assets/csv")
+				.file(file)
+				.header(AUTHORIZATION, bearer(auditorToken))
+				.contentType(MULTIPART_FORM_DATA))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(get("/imports/assets/{jobId}", IMPORT_JOB_2)
+				.header(AUTHORIZATION, bearer(viewerToken)))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void crossTenantAccessToImportJobIsDenied() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 

@@ -39,6 +39,7 @@ class UserManagementIntegrationTest {
 	private static final UUID ORG_ADMIN_1 = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 	private static final UUID AUDITOR_1 = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 	private static final UUID VIEWER_1 = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+	private static final UUID ASSET_MANAGER_1 = UUID.fromString("12121212-1212-1212-1212-121212121212");
 	private static final UUID ORG_ADMIN_2 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
 	private static final UUID TARGET_USER_1 = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 	private static final UUID TARGET_USER_2 = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
@@ -74,6 +75,7 @@ class UserManagementIntegrationTest {
 		insertUser(ORG_ADMIN_1, ORG_1, "orgadmin1@assetdock.dev", "ORG_ADMIN");
 		insertUser(AUDITOR_1, ORG_1, "auditor1@assetdock.dev", "AUDITOR");
 		insertUser(VIEWER_1, ORG_1, "viewer1@assetdock.dev", "VIEWER");
+		insertUser(ASSET_MANAGER_1, ORG_1, "manager1@assetdock.dev", "ASSET_MANAGER");
 		insertUser(ORG_ADMIN_2, ORG_2, "orgadmin2@assetdock.dev", "ORG_ADMIN");
 		insertUser(TARGET_USER_1, ORG_1, "target1@assetdock.dev", "VIEWER");
 		insertUser(TARGET_USER_2, ORG_2, "target2@assetdock.dev", "VIEWER");
@@ -321,6 +323,35 @@ class UserManagementIntegrationTest {
 					  "password": "S3curePass!",
 					  "roles": ["VIEWER"],
 					  "status": "ACTIVE"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void assetManagerShouldNotManageUsersOrRoles() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/users")
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "fullName": "Blocked Manager Action",
+					  "email": "blocked.manager@assetdock.dev",
+					  "password": "S3curePass!",
+					  "roles": ["VIEWER"],
+					  "status": "ACTIVE"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(patch("/users/{id}/roles", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "roles": ["AUDITOR"]
 					}
 					"""))
 			.andExpect(status().isForbidden());
