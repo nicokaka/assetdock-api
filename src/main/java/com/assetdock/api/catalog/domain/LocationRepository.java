@@ -12,7 +12,7 @@ public interface LocationRepository {
 
 	Location update(Location location);
 
-	List<Location> findAllByOrganizationId(UUID organizationId);
+	List<Location> findAllByOrganizationId(UUID organizationId, int limit);
 
 	Optional<Location> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

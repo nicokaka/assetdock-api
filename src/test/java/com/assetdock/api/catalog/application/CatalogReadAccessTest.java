@@ -80,7 +80,7 @@ class CatalogReadAccessTest {
 			"auditor@assetdock.dev",
 			Set.of(UserRole.AUDITOR)
 		);
-		when(categoryRepository.findAllByOrganizationId(ORG_1)).thenReturn(List.of(
+		when(categoryRepository.findAllByOrganizationId(ORG_1, 100)).thenReturn(List.of(
 			new Category(UUID.randomUUID(), ORG_1, "Laptops", "Portable computers", true, NOW, NOW)
 		));
 
@@ -98,7 +98,7 @@ class CatalogReadAccessTest {
 			"viewer@assetdock.dev",
 			Set.of(UserRole.VIEWER)
 		);
-		when(locationRepository.findAllByOrganizationId(ORG_1)).thenReturn(List.of(
+		when(locationRepository.findAllByOrganizationId(ORG_1, 100)).thenReturn(List.of(
 			new Location(UUID.randomUUID(), ORG_1, "Warehouse", "Main storage", true, NOW, NOW)
 		));
 

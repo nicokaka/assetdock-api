@@ -105,12 +105,14 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
-	public List<Asset> findAllByOrganizationId(UUID organizationId) {
+	public List<Asset> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE organization_id = :organizationId
 			ORDER BY display_name, asset_tag
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapAsset)
 			.list();
 	}

@@ -12,7 +12,7 @@ public interface ManufacturerRepository {
 
 	Manufacturer update(Manufacturer manufacturer);
 
-	List<Manufacturer> findAllByOrganizationId(UUID organizationId);
+	List<Manufacturer> findAllByOrganizationId(UUID organizationId, int limit);
 
 	Optional<Manufacturer> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

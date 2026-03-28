@@ -3,6 +3,7 @@ package com.assetdock.api.catalog.application;
 import com.assetdock.api.audit.application.AuditLogCommand;
 import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
+import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.catalog.domain.Location;
 import com.assetdock.api.catalog.domain.LocationRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -78,7 +79,7 @@ public class LocationManagementService {
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireCatalogReadAccess(actor, organizationId);
 
-		return locationRepository.findAllByOrganizationId(organizationId)
+		return locationRepository.findAllByOrganizationId(organizationId, QueryLimits.DEFAULT_LIST_LIMIT)
 			.stream()
 			.map(this::toView)
 			.toList();

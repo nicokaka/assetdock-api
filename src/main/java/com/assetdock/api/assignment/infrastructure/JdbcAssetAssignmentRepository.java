@@ -79,14 +79,16 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 	}
 
 	@Override
-	public List<AssetAssignment> findAllByAssetIdAndOrganizationId(UUID assetId, UUID organizationId) {
+	public List<AssetAssignment> findAllByAssetIdAndOrganizationId(UUID assetId, UUID organizationId, int limit) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE asset_id = :assetId
 			  AND organization_id = :organizationId
 			ORDER BY assigned_at DESC, created_at DESC
+			LIMIT :limit
 			""")
 			.param("assetId", assetId)
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapAssignment)
 			.list();
 	}

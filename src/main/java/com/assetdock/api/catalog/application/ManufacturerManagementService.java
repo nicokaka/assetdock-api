@@ -5,6 +5,7 @@ import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.catalog.domain.Manufacturer;
 import com.assetdock.api.catalog.domain.ManufacturerRepository;
+import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import java.time.Clock;
@@ -79,7 +80,7 @@ public class ManufacturerManagementService {
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireCatalogReadAccess(actor, organizationId);
 
-		return manufacturerRepository.findAllByOrganizationId(organizationId)
+		return manufacturerRepository.findAllByOrganizationId(organizationId, QueryLimits.DEFAULT_LIST_LIMIT)
 			.stream()
 			.map(this::toView)
 			.toList();

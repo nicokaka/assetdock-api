@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -247,6 +248,24 @@ class CatalogManagementIntegrationTest {
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[*].name").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("Servers"))));
+	}
+
+	@Test
+	void catalogListShouldBeBoundedToHundredItems() throws Exception {
+		for (int index = 0; index < 110; index++) {
+			insertCategory(
+				UUID.fromString("70000000-0000-0000-0000-%012d".formatted(index + 1)),
+				ORG_1,
+				"Category %03d".formatted(index)
+			);
+		}
+
+		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/categories")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
 	@Test

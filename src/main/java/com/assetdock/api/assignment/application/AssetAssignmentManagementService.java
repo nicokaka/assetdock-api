@@ -10,6 +10,7 @@ import com.assetdock.api.audit.application.AuditLogCommand;
 import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.catalog.domain.LocationRepository;
+import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import com.assetdock.api.user.domain.UserRepository;
@@ -109,7 +110,11 @@ public class AssetAssignmentManagementService {
 	@Transactional(readOnly = true)
 	public List<AssetAssignmentView> list(AuthenticatedUserPrincipal actor, UUID assetId) {
 		Asset asset = findAssetForActor(actor, assetId, false);
-		return assetAssignmentRepository.findAllByAssetIdAndOrganizationId(asset.id(), asset.organizationId())
+		return assetAssignmentRepository.findAllByAssetIdAndOrganizationId(
+			asset.id(),
+			asset.organizationId(),
+			QueryLimits.DEFAULT_LIST_LIMIT
+		)
 			.stream()
 			.map(this::toView)
 			.toList();

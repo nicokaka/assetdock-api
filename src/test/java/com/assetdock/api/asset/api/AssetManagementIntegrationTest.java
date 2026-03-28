@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -267,6 +268,29 @@ class AssetManagementIntegrationTest {
 		mockMvc.perform(get("/assets/{id}", ASSET_2)
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void assetListShouldBeBoundedToHundredItems() throws Exception {
+		for (int index = 0; index < 110; index++) {
+			insertAsset(
+				UUID.fromString("91000000-0000-0000-0000-%012d".formatted(index + 1)),
+				ORG_1,
+				"AST-BULK-%03d".formatted(index),
+				CATEGORY_1,
+				MANUFACTURER_1,
+				LOCATION_1,
+				null,
+				"IN_STOCK"
+			);
+		}
+
+		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/assets")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
 	@Test

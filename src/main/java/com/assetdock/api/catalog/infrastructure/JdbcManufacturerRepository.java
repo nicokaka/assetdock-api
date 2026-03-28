@@ -82,14 +82,16 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 	}
 
 	@Override
-	public List<Manufacturer> findAllByOrganizationId(UUID organizationId) {
+	public List<Manufacturer> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, website, active, created_at, updated_at
 			FROM manufacturers
 			WHERE organization_id = :organizationId
 			ORDER BY name
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapManufacturer)
 			.list();
 	}

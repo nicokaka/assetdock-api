@@ -79,14 +79,16 @@ public class JdbcCategoryRepository implements CategoryRepository {
 	}
 
 	@Override
-	public List<Category> findAllByOrganizationId(UUID organizationId) {
+	public List<Category> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, active, created_at, updated_at
 			FROM categories
 			WHERE organization_id = :organizationId
 			ORDER BY name
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapCategory)
 			.list();
 	}

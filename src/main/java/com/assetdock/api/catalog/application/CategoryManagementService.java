@@ -5,6 +5,7 @@ import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.catalog.domain.Category;
 import com.assetdock.api.catalog.domain.CategoryRepository;
+import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import java.time.Clock;
@@ -78,7 +79,7 @@ public class CategoryManagementService {
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireCatalogReadAccess(actor, organizationId);
 
-		return categoryRepository.findAllByOrganizationId(organizationId)
+		return categoryRepository.findAllByOrganizationId(organizationId, QueryLimits.DEFAULT_LIST_LIMIT)
 			.stream()
 			.map(this::toView)
 			.toList();

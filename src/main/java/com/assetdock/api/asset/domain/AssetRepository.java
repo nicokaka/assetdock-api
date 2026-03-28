@@ -11,7 +11,7 @@ public interface AssetRepository {
 
 	Asset save(Asset asset);
 
-	List<Asset> findAllByOrganizationId(UUID organizationId);
+	List<Asset> findAllByOrganizationId(UUID organizationId, int limit);
 
 	Optional<Asset> findByIdAndOrganizationId(UUID assetId, UUID organizationId);
 

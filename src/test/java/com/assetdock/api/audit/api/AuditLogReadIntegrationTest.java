@@ -165,6 +165,31 @@ class AuditLogReadIntegrationTest {
 			.andExpect(jsonPath("$.items[0].eventType").value("USER_CREATED"));
 	}
 
+	@Test
+	void auditLogQueryRejectsOversizedPageSize() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/audit-logs")
+				.header(AUTHORIZATION, bearer(token))
+				.param("size", "101"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:invalid-audit-log-query"))
+			.andExpect(jsonPath("$.detail").value("size must be between 1 and 100."));
+	}
+
+	@Test
+	void auditLogQueryRejectsExcessivelyLargePageOffset() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/audit-logs")
+				.header(AUTHORIZATION, bearer(token))
+				.param("page", "30000000")
+				.param("size", "100"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:invalid-audit-log-query"))
+			.andExpect(jsonPath("$.detail").value("page is too large."));
+	}
+
 	private String login(String email, String password) throws Exception {
 		String response = mockMvc.perform(post("/api/v1/auth/login")
 				.contentType(APPLICATION_JSON)

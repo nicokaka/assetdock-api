@@ -49,8 +49,12 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
-	public List<User> findAll() {
-		return jdbcClient.sql(baseSelect() + "ORDER BY full_name, email")
+	public List<User> findAll(int limit) {
+		return jdbcClient.sql(baseSelect() + """
+			ORDER BY full_name, email
+			LIMIT :limit
+			""")
+			.param("limit", limit)
 			.query(this::mapUserSnapshot)
 			.list()
 			.stream()
@@ -59,12 +63,14 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
-	public List<User> findAllByOrganizationId(UUID organizationId) {
+	public List<User> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE organization_id = :organizationId
 			ORDER BY full_name, email
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapUserSnapshot)
 			.list()
 			.stream()

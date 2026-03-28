@@ -12,9 +12,9 @@ public interface UserRepository {
 
 	Optional<User> findById(UUID userId);
 
-	List<User> findAll();
+	List<User> findAll(int limit);
 
-	List<User> findAllByOrganizationId(UUID organizationId);
+	List<User> findAllByOrganizationId(UUID organizationId, int limit);
 
 	boolean existsByEmail(String normalizedEmail);
 

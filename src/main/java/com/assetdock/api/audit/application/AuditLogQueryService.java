@@ -3,6 +3,7 @@ package com.assetdock.api.audit.application;
 import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.audit.domain.AuditLogEntry;
 import com.assetdock.api.audit.domain.AuditLogRepository;
+import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import java.time.Instant;
@@ -13,10 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuditLogQueryService {
-
-	private static final int DEFAULT_PAGE = 0;
-	private static final int DEFAULT_SIZE = 20;
-	private static final int MAX_SIZE = 100;
 
 	private final AuditLogRepository auditLogRepository;
 	private final TenantAccessService tenantAccessService;
@@ -39,14 +36,13 @@ public class AuditLogQueryService {
 		Instant to,
 		UUID organizationId
 	) {
-		int resolvedPage = page == null ? DEFAULT_PAGE : page;
-		int resolvedSize = size == null ? DEFAULT_SIZE : size;
-		validatePagination(resolvedPage, resolvedSize);
+		int resolvedPage = page == null ? QueryLimits.DEFAULT_PAGE : page;
+		int resolvedSize = size == null ? QueryLimits.DEFAULT_PAGE_SIZE : size;
+		int offset = validateAndResolveOffset(resolvedPage, resolvedSize);
 		validateDateRange(from, to);
 
 		UUID scopeOrganizationId = resolveScopeOrganizationId(actor, organizationId);
 		long totalElements = auditLogRepository.countByCriteria(scopeOrganizationId, eventType, from, to);
-		int offset = resolvedPage * resolvedSize;
 		List<AuditLogView> items = auditLogRepository.findByCriteria(
 			scopeOrganizationId,
 			eventType,
@@ -101,13 +97,18 @@ public class AuditLogQueryService {
 		return actor.organizationId();
 	}
 
-	private void validatePagination(int page, int size) {
+	private int validateAndResolveOffset(int page, int size) {
 		if (page < 0) {
 			throw new InvalidAuditLogQueryException("page must be greater than or equal to 0.");
 		}
-		if (size <= 0 || size > MAX_SIZE) {
+		if (size <= 0 || size > QueryLimits.MAX_PAGE_SIZE) {
 			throw new InvalidAuditLogQueryException("size must be between 1 and 100.");
 		}
+		long offset = (long) page * size;
+		if (offset > Integer.MAX_VALUE) {
+			throw new InvalidAuditLogQueryException("page is too large.");
+		}
+		return (int) offset;
 	}
 
 	private void validateDateRange(Instant from, Instant to) {

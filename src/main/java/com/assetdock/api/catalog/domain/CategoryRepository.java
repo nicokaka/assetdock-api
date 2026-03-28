@@ -12,7 +12,7 @@ public interface CategoryRepository {
 
 	Category update(Category category);
 
-	List<Category> findAllByOrganizationId(UUID organizationId);
+	List<Category> findAllByOrganizationId(UUID organizationId, int limit);
 
 	Optional<Category> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

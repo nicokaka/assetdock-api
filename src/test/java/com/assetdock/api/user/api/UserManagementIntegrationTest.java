@@ -22,6 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -355,6 +356,25 @@ class UserManagementIntegrationTest {
 					}
 					"""))
 			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void userListShouldBeBoundedToHundredItems() throws Exception {
+		for (int index = 0; index < 110; index++) {
+			insertUser(
+				UUID.fromString("90000000-0000-0000-0000-%012d".formatted(index + 1)),
+				ORG_1,
+				"bulk-user-%03d@assetdock.dev".formatted(index),
+				"VIEWER"
+			);
+		}
+
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/users")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
 	private String login(String email, String password) throws Exception {

@@ -3,6 +3,7 @@ package com.assetdock.api.user.application;
 import com.assetdock.api.audit.application.AuditLogCommand;
 import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
+import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
 import com.assetdock.api.organization.domain.OrganizationRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -108,7 +109,7 @@ public class UserManagementService {
 	@Transactional(readOnly = true)
 	public List<UserView> listUsers(AuthenticatedUserPrincipal actor) {
 		if (actor.isSuperAdmin()) {
-			return userRepository.findAll()
+			return userRepository.findAll(QueryLimits.DEFAULT_LIST_LIMIT)
 				.stream()
 				.map(user -> toView(user, actor))
 				.toList();
@@ -116,7 +117,7 @@ public class UserManagementService {
 
 		UUID actorOrganizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireUserReadAccess(actor, actorOrganizationId);
-		List<User> users = userRepository.findAllByOrganizationId(actorOrganizationId);
+		List<User> users = userRepository.findAllByOrganizationId(actorOrganizationId, QueryLimits.DEFAULT_LIST_LIMIT);
 
 		return users.stream()
 			.map(user -> {

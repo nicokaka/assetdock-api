@@ -20,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -218,6 +219,28 @@ class AssetAssignmentIntegrationTest {
 		mockMvc.perform(post("/assets/{id}/unassign", ASSET_ORG_2)
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void assignmentHistoryShouldBeBoundedToHundredItems() throws Exception {
+		for (int index = 0; index < 110; index++) {
+			insertClosedAssignment(
+				UUID.fromString("b0000000-0000-0000-0000-%012d".formatted(index + 1)),
+				ORG_1,
+				ASSET_ASSIGNED_1,
+				USER_1,
+				LOCATION_1,
+				ORG_ADMIN_1,
+				index + 1
+			);
+		}
+
+		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/assets/{id}/assignments", ASSET_ASSIGNED_1)
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
 	@Test
@@ -566,6 +589,44 @@ class AssetAssignmentIntegrationTest {
 			locationId,
 			assignedBy,
 			"Assigned for daily use"
+		);
+	}
+
+	private void insertClosedAssignment(
+		UUID id,
+		UUID organizationId,
+		UUID assetId,
+		UUID userId,
+		UUID locationId,
+		UUID assignedBy,
+		int minutesAgo
+	) {
+		jdbcTemplate.update(
+			"""
+				INSERT INTO asset_assignments (
+					id,
+					organization_id,
+					asset_id,
+					user_id,
+					location_id,
+					assigned_at,
+					unassigned_at,
+					assigned_by,
+					notes,
+					created_at
+				)
+				VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP - (? * INTERVAL '1 minute'), CURRENT_TIMESTAMP - (? * INTERVAL '1 minute'), ?, ?, CURRENT_TIMESTAMP - (? * INTERVAL '1 minute'))
+				""",
+			id,
+			organizationId,
+			assetId,
+			userId,
+			locationId,
+			minutesAgo + 1,
+			minutesAgo,
+			assignedBy,
+			"Historical assignment",
+			minutesAgo + 1
 		);
 	}
 
