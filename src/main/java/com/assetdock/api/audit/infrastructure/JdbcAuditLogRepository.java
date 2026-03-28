@@ -3,6 +3,7 @@ package com.assetdock.api.audit.infrastructure;
 import com.assetdock.api.audit.domain.AuditLogEntry;
 import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.audit.domain.AuditLogRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,7 +71,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			.param("userAgent", entry.userAgent())
 			.param("requestId", entry.requestId())
 			.param("detailsJson", serialize(entry))
-			.param("occurredAt", entry.occurredAt())
+			.param("occurredAt", JdbcColumnReaders.toOffsetDateTime(entry.occurredAt()))
 			.update();
 	}
 
@@ -168,7 +169,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			resultSet.getString("user_agent"),
 			resultSet.getString("request_id"),
 			deserializeDetails(resultSet.getString("details_json")),
-			resultSet.getObject("occurred_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "occurred_at")
 		);
 	}
 

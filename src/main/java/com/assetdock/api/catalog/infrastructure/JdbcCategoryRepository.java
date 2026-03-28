@@ -2,6 +2,7 @@ package com.assetdock.api.catalog.infrastructure;
 
 import com.assetdock.api.catalog.domain.Category;
 import com.assetdock.api.catalog.domain.CategoryRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -49,8 +50,8 @@ public class JdbcCategoryRepository implements CategoryRepository {
 			.param("name", category.name())
 			.param("description", category.description())
 			.param("active", category.active())
-			.param("createdAt", category.createdAt())
-			.param("updatedAt", category.updatedAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(category.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(category.updatedAt()))
 			.update();
 
 		return category;
@@ -72,7 +73,7 @@ public class JdbcCategoryRepository implements CategoryRepository {
 			.param("name", category.name())
 			.param("description", category.description())
 			.param("active", category.active())
-			.param("updatedAt", category.updatedAt())
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(category.updatedAt()))
 			.update();
 
 		return category;
@@ -114,8 +115,8 @@ public class JdbcCategoryRepository implements CategoryRepository {
 			resultSet.getString("name"),
 			resultSet.getString("description"),
 			resultSet.getBoolean("active"),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

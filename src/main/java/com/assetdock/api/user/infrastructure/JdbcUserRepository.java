@@ -4,6 +4,7 @@ import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
 import com.assetdock.api.user.domain.UserStatus;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -106,9 +107,9 @@ public class JdbcUserRepository implements UserRepository {
 			.param("fullName", user.fullName())
 			.param("passwordHash", user.passwordHash())
 			.param("status", user.status().name())
-			.param("lastLoginAt", user.lastLoginAt())
-			.param("createdAt", user.createdAt())
-			.param("updatedAt", user.updatedAt())
+			.param("lastLoginAt", JdbcColumnReaders.toOffsetDateTime(user.lastLoginAt()))
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(user.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(user.updatedAt()))
 			.update();
 
 		user.roles().forEach(role -> jdbcClient.sql("""
@@ -117,7 +118,7 @@ public class JdbcUserRepository implements UserRepository {
 			""")
 			.param("userId", user.id())
 			.param("role", role.name())
-			.param("createdAt", user.createdAt())
+				.param("createdAt", JdbcColumnReaders.toOffsetDateTime(user.createdAt()))
 			.update());
 
 		return user;
@@ -293,9 +294,9 @@ public class JdbcUserRepository implements UserRepository {
 			resultSet.getString("password_hash"),
 			UserStatus.valueOf(resultSet.getString("status")),
 			resultSet.getInt("failed_login_attempts"),
-			resultSet.getObject("last_login_at", Instant.class),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "last_login_at"),
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 

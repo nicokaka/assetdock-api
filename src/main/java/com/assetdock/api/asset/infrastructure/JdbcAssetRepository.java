@@ -3,6 +3,7 @@ package com.assetdock.api.asset.infrastructure;
 import com.assetdock.api.asset.domain.Asset;
 import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.asset.domain.AssetStatus;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -96,9 +97,9 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("status", asset.status().name())
 			.param("purchaseDate", asset.purchaseDate())
 			.param("warrantyExpiryDate", asset.warrantyExpiryDate())
-			.param("archivedAt", asset.archivedAt())
-			.param("createdAt", asset.createdAt())
-			.param("updatedAt", asset.updatedAt())
+			.param("archivedAt", JdbcColumnReaders.toOffsetDateTime(asset.archivedAt()))
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(asset.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(asset.updatedAt()))
 			.update();
 
 		return asset;
@@ -174,8 +175,8 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("status", asset.status().name())
 			.param("purchaseDate", asset.purchaseDate())
 			.param("warrantyExpiryDate", asset.warrantyExpiryDate())
-			.param("archivedAt", asset.archivedAt())
-			.param("updatedAt", asset.updatedAt())
+			.param("archivedAt", JdbcColumnReaders.toOffsetDateTime(asset.archivedAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(asset.updatedAt()))
 			.update();
 
 		return asset;
@@ -192,8 +193,8 @@ public class JdbcAssetRepository implements AssetRepository {
 			""")
 			.param("assetId", assetId)
 			.param("organizationId", organizationId)
-			.param("archivedAt", archivedAt)
-			.param("updatedAt", updatedAt)
+			.param("archivedAt", JdbcColumnReaders.toOffsetDateTime(archivedAt))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.update();
 
 		return findByIdAndOrganizationId(assetId, organizationId).orElseThrow();
@@ -224,9 +225,9 @@ public class JdbcAssetRepository implements AssetRepository {
 			AssetStatus.valueOf(resultSet.getString("status")),
 			resultSet.getObject("purchase_date", LocalDate.class),
 			resultSet.getObject("warranty_expiry_date", LocalDate.class),
-			resultSet.getObject("archived_at", Instant.class),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "archived_at"),
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

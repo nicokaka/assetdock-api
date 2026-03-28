@@ -2,6 +2,7 @@ package com.assetdock.api.catalog.infrastructure;
 
 import com.assetdock.api.catalog.domain.Manufacturer;
 import com.assetdock.api.catalog.domain.ManufacturerRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -50,8 +51,8 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 			.param("description", manufacturer.description())
 			.param("website", manufacturer.website())
 			.param("active", manufacturer.active())
-			.param("createdAt", manufacturer.createdAt())
-			.param("updatedAt", manufacturer.updatedAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(manufacturer.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(manufacturer.updatedAt()))
 			.update();
 
 		return manufacturer;
@@ -75,7 +76,7 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 			.param("description", manufacturer.description())
 			.param("website", manufacturer.website())
 			.param("active", manufacturer.active())
-			.param("updatedAt", manufacturer.updatedAt())
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(manufacturer.updatedAt()))
 			.update();
 
 		return manufacturer;
@@ -118,8 +119,8 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 			resultSet.getString("description"),
 			resultSet.getString("website"),
 			resultSet.getBoolean("active"),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }
