@@ -219,6 +219,45 @@ class AssetCsvImportIntegrationTest {
 	}
 
 	@Test
+	void importRejectsEmptyFilePredictably() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+		MockMultipartFile file = csvFile("empty.csv", "");
+
+		mockMvc.perform(multipart("/imports/assets/csv")
+				.file(file)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(MULTIPART_FORM_DATA))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:invalid-asset-import-request"))
+			.andExpect(jsonPath("$.detail").value("A non-empty CSV file is required."));
+
+		org.assertj.core.api.Assertions.assertThat(auditEventCount("CSV_IMPORT_FAILED")).isEqualTo(1);
+		org.assertj.core.api.Assertions.assertThat(latestAuditOutcome()).isEqualTo("FAILURE");
+		org.assertj.core.api.Assertions.assertThat(latestAuditReasonCode()).isEqualTo("empty-file");
+	}
+
+	@Test
+	void importRejectsMissingRequiredHeaders() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+		MockMultipartFile file = csvFile("missing-header.csv", """
+			display_name
+			Missing asset tag
+			""");
+
+		mockMvc.perform(multipart("/imports/assets/csv")
+				.file(file)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(MULTIPART_FORM_DATA))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.status").value("FAILED"))
+			.andExpect(jsonPath("$.failureReason").value("CSV must include header 'asset_tag'."));
+
+		org.assertj.core.api.Assertions.assertThat(assetCountForOrg(ORG_1)).isZero();
+		org.assertj.core.api.Assertions.assertThat(latestAuditOutcome()).isEqualTo("FAILURE");
+		org.assertj.core.api.Assertions.assertThat(latestAuditReasonCode()).isEqualTo("missing-header");
+	}
+
+	@Test
 	void importRespectsFileSizeLimit() throws Exception {
 		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 		String oversizedContent = "asset_tag,display_name\n" + "A".repeat(2 * 1024 * 1024 + 1);
@@ -249,6 +288,52 @@ class AssetCsvImportIntegrationTest {
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.status").value("FAILED"))
 			.andExpect(jsonPath("$.failureReason").value("CSV line limit exceeded. Maximum is 1000 data rows."));
+	}
+
+	@Test
+	void importRejectsDuplicateAssetTagsWithinSameUploadBeforeWrites() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+		MockMultipartFile file = csvFile("duplicate-tags.csv", """
+			asset_tag,display_name
+			AST-DUP-1,First
+			ast-dup-1,Second
+			""");
+
+		mockMvc.perform(multipart("/imports/assets/csv")
+				.file(file)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(MULTIPART_FORM_DATA))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.status").value("FAILED"))
+			.andExpect(jsonPath("$.failureReason").value("CSV contains duplicated asset_tag values in the same upload."));
+
+		org.assertj.core.api.Assertions.assertThat(assetCountForOrg(ORG_1)).isZero();
+		org.assertj.core.api.Assertions.assertThat(latestAuditOutcome()).isEqualTo("FAILURE");
+		org.assertj.core.api.Assertions.assertThat(latestAuditReasonCode()).isEqualTo("duplicate-asset-tag-in-upload");
+	}
+
+	@Test
+	void importTreatsMalformedRowsAsSafePerRowErrors() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+		MockMultipartFile file = csvFile("malformed-rows.csv", """
+			asset_tag,display_name,category_id
+			AST-CSV-9,Valid row,%s
+			AST-CSV-10
+			""".formatted(CATEGORY_1));
+
+		mockMvc.perform(multipart("/imports/assets/csv")
+				.file(file)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(MULTIPART_FORM_DATA))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.status").value("COMPLETED_WITH_ERRORS"))
+			.andExpect(jsonPath("$.totalRows").value(2))
+			.andExpect(jsonPath("$.successCount").value(1))
+			.andExpect(jsonPath("$.errorCount").value(1))
+			.andExpect(jsonPath("$.errors[0].line").value(3))
+			.andExpect(jsonPath("$.errors[0].reason").value("Row has invalid CSV structure."));
+
+		org.assertj.core.api.Assertions.assertThat(assetCountForOrg(ORG_1)).isEqualTo(1);
 	}
 
 	private MockMultipartFile csvFile(String fileName, String content) {
@@ -397,5 +482,37 @@ class AssetCsvImportIntegrationTest {
 		jdbcTemplate.update("DELETE FROM user_roles");
 		jdbcTemplate.update("DELETE FROM users");
 		jdbcTemplate.update("DELETE FROM organizations");
+	}
+
+	private int assetCountForOrg(UUID organizationId) {
+		Integer value = jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM assets WHERE organization_id = ?",
+			Integer.class,
+			organizationId
+		);
+		return value == null ? 0 : value;
+	}
+
+	private int auditEventCount(String eventType) {
+		Integer value = jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM audit_logs WHERE event_type = ?::audit_event_type",
+			Integer.class,
+			eventType
+		);
+		return value == null ? 0 : value;
+	}
+
+	private String latestAuditOutcome() {
+		return jdbcTemplate.queryForObject(
+			"SELECT outcome FROM audit_logs ORDER BY occurred_at DESC LIMIT 1",
+			String.class
+		);
+	}
+
+	private String latestAuditReasonCode() {
+		return jdbcTemplate.queryForObject(
+			"SELECT details_json ->> 'reasonCode' FROM audit_logs ORDER BY occurred_at DESC LIMIT 1",
+			String.class
+		);
 	}
 }
