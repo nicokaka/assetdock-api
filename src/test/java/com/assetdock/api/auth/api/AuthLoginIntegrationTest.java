@@ -52,6 +52,7 @@ class AuthLoginIntegrationTest {
 		registry.add("spring.datasource.username", POSTGRES::getUsername);
 		registry.add("spring.datasource.password", POSTGRES::getPassword);
 		registry.add("security.jwt.secret", () -> "test-only-jwt-secret-key-with-32-bytes");
+		registry.add("security.auth.max-failed-login-attempts", () -> "3");
 	}
 
 	@BeforeEach
@@ -108,6 +109,26 @@ class AuthLoginIntegrationTest {
 	}
 
 	@Test
+	void shouldAutomaticallyLockUserAfterConfiguredFailedLoginThreshold() throws Exception {
+		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!", 2);
+
+		mockMvc.perform(post("/api/v1/auth/login")
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "email": "user@assetdock.dev",
+					  "password": "wrong-password"
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.title").value("Authentication failed"));
+
+		org.assertj.core.api.Assertions.assertThat(currentUserStatus()).isEqualTo("LOCKED");
+		org.assertj.core.api.Assertions.assertThat(currentFailedLoginAttempts()).isEqualTo(3);
+		org.assertj.core.api.Assertions.assertThat(auditEventCount("USER_LOCKED")).isEqualTo(1);
+	}
+
+	@Test
 	void shouldBlockInactiveUser() throws Exception {
 		insertUser("INACTIVE", "user@assetdock.dev", "S3curePass!");
 
@@ -139,18 +160,43 @@ class AuthLoginIntegrationTest {
 			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:user-locked"));
 	}
 
+	@Test
+	void shouldResetFailedLoginAttemptsAfterSuccessfulAuthentication() throws Exception {
+		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!", 2);
+
+		mockMvc.perform(post("/api/v1/auth/login")
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "email": "user@assetdock.dev",
+					  "password": "S3curePass!"
+					}
+					"""))
+			.andExpect(status().isOk());
+
+		org.assertj.core.api.Assertions.assertThat(currentUserStatus()).isEqualTo("ACTIVE");
+		org.assertj.core.api.Assertions.assertThat(currentFailedLoginAttempts()).isZero();
+		org.assertj.core.api.Assertions.assertThat(auditEventCount("LOGIN_SUCCESS")).isEqualTo(1);
+		org.assertj.core.api.Assertions.assertThat(loginSuccessResetAuditCount()).isEqualTo(1);
+	}
+
 	private void insertUser(String status, String email, String rawPassword) {
+		insertUser(status, email, rawPassword, 0);
+	}
+
+	private void insertUser(String status, String email, String rawPassword, int failedLoginAttempts) {
 		jdbcTemplate.update(
 			"""
-				INSERT INTO users (id, organization_id, email, full_name, password_hash, status)
-				VALUES (?, ?, ?, ?, ?, ?::user_status)
+				INSERT INTO users (id, organization_id, email, full_name, password_hash, status, failed_login_attempts)
+				VALUES (?, ?, ?, ?, ?, ?::user_status, ?)
 				""",
 			USER_ID,
 			ORGANIZATION_ID,
 			email,
 			"AssetDock User",
 			passwordEncoder.encode(rawPassword),
-			status
+			status,
+			failedLoginAttempts
 		);
 
 		jdbcTemplate.update(
@@ -164,8 +210,48 @@ class AuthLoginIntegrationTest {
 	}
 
 	private void cleanDatabase() {
+		jdbcTemplate.update("DELETE FROM audit_logs");
 		jdbcTemplate.update("DELETE FROM user_roles");
 		jdbcTemplate.update("DELETE FROM users");
 		jdbcTemplate.update("DELETE FROM organizations");
+	}
+
+	private String currentUserStatus() {
+		return jdbcTemplate.queryForObject(
+			"SELECT status::text FROM users WHERE id = ?",
+			String.class,
+			USER_ID
+		);
+	}
+
+	private int currentFailedLoginAttempts() {
+		Integer value = jdbcTemplate.queryForObject(
+			"SELECT failed_login_attempts FROM users WHERE id = ?",
+			Integer.class,
+			USER_ID
+		);
+		return value == null ? -1 : value;
+	}
+
+	private int auditEventCount(String eventType) {
+		Long value = jdbcTemplate.queryForObject(
+			"SELECT COUNT(*) FROM audit_logs WHERE event_type = ?::audit_event_type",
+			Long.class,
+			eventType
+		);
+		return value == null ? 0 : value.intValue();
+	}
+
+	private int loginSuccessResetAuditCount() {
+		Long value = jdbcTemplate.queryForObject(
+			"""
+				SELECT COUNT(*)
+				FROM audit_logs
+				WHERE event_type = 'LOGIN_SUCCESS'::audit_event_type
+				  AND details_json ->> 'failedLoginAttemptsReset' = 'true'
+				""",
+			Long.class
+		);
+		return value == null ? 0 : value.intValue();
 	}
 }

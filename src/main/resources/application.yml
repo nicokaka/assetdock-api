@@ -53,6 +53,8 @@ logging:
     root: INFO
     org.springframework.security: INFO
 security:
+  auth:
+    max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
   jwt:
     secret: ${JWT_SECRET:}
     issuer: ${JWT_ISSUER:assetdock-api}

@@ -268,6 +268,7 @@ class UserManagementServiceTest {
 			"$2a$10$abcdefghijklmnopqrstuvwxyzABCDE1234567890",
 			status,
 			roles,
+			0,
 			null,
 			NOW.minusSeconds(3600),
 			NOW.minusSeconds(1800)

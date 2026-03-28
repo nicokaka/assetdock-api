@@ -164,6 +164,36 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
+	public User incrementFailedLoginAttempts(UUID userId, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET failed_login_attempts = failed_login_attempts + 1,
+			    updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("updatedAt", updatedAt)
+			.param("userId", userId)
+			.update();
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
+	public User resetFailedLoginAttempts(UUID userId, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET failed_login_attempts = 0,
+			    updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("updatedAt", updatedAt)
+			.param("userId", userId)
+			.update();
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
 	public long countActiveUsersByOrganizationIdAndRole(UUID organizationId, UserRole role) {
 		Long count = jdbcClient.sql("""
 			SELECT COUNT(*)
@@ -220,6 +250,7 @@ public class JdbcUserRepository implements UserRepository {
 			snapshot.passwordHash(),
 			snapshot.status(),
 			loadRoles(snapshot.id()),
+			snapshot.failedLoginAttempts(),
 			snapshot.lastLoginAt(),
 			snapshot.createdAt(),
 			snapshot.updatedAt()
@@ -242,7 +273,7 @@ public class JdbcUserRepository implements UserRepository {
 
 	private String baseSelect() {
 		return """
-			SELECT id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at
+			SELECT id, organization_id, email, full_name, password_hash, status, failed_login_attempts, last_login_at, created_at, updated_at
 			FROM users
 			""";
 	}
@@ -255,6 +286,7 @@ public class JdbcUserRepository implements UserRepository {
 			resultSet.getString("full_name"),
 			resultSet.getString("password_hash"),
 			UserStatus.valueOf(resultSet.getString("status")),
+			resultSet.getInt("failed_login_attempts"),
 			resultSet.getObject("last_login_at", Instant.class),
 			resultSet.getObject("created_at", Instant.class),
 			resultSet.getObject("updated_at", Instant.class)
@@ -268,6 +300,7 @@ public class JdbcUserRepository implements UserRepository {
 		String fullName,
 		String passwordHash,
 		UserStatus status,
+		int failedLoginAttempts,
 		Instant lastLoginAt,
 		Instant createdAt,
 		Instant updatedAt

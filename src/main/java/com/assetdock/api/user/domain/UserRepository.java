@@ -24,6 +24,10 @@ public interface UserRepository {
 
 	User updateRoles(UUID userId, Set<UserRole> roles, Instant updatedAt);
 
+	User incrementFailedLoginAttempts(UUID userId, Instant updatedAt);
+
+	User resetFailedLoginAttempts(UUID userId, Instant updatedAt);
+
 	long countActiveUsersByOrganizationIdAndRole(UUID organizationId, UserRole role);
 
 	long countActiveUsersByRole(UserRole role);

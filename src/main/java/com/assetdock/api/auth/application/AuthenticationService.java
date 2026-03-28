@@ -22,6 +22,7 @@ public class AuthenticationService {
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenService jwtTokenService;
 	private final AuditLogService auditLogService;
+	private final AuthHardeningProperties authHardeningProperties;
 	private final Clock clock;
 
 	public AuthenticationService(
@@ -29,12 +30,14 @@ public class AuthenticationService {
 		PasswordEncoder passwordEncoder,
 		JwtTokenService jwtTokenService,
 		AuditLogService auditLogService,
+		AuthHardeningProperties authHardeningProperties,
 		Clock clock
 	) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtTokenService = jwtTokenService;
 		this.auditLogService = auditLogService;
+		this.authHardeningProperties = authHardeningProperties;
 		this.clock = clock;
 	}
 
@@ -48,6 +51,7 @@ public class AuthenticationService {
 			});
 
 		if (!passwordEncoder.matches(command.password(), user.passwordHash())) {
+			handleFailedPasswordAttempt(user, normalizedEmail);
 			recordLoginFailure(user.organizationId(), null, user.id(), normalizedEmail, "invalid_password");
 			throw new InvalidCredentialsException();
 		}
@@ -63,24 +67,67 @@ public class AuthenticationService {
 		}
 
 		Instant loginAt = Instant.now(clock);
+		int previousFailedLoginAttempts = user.failedLoginAttempts();
+		User authenticatedUser = user;
+		if (user.failedLoginAttempts() > 0) {
+			authenticatedUser = userRepository.resetFailedLoginAttempts(user.id(), loginAt);
+		}
 		userRepository.updateLastLoginAt(user.id(), loginAt);
 
-		AuthenticatedUserPrincipal principal = AuthenticatedUserPrincipal.from(user);
+		AuthenticatedUserPrincipal principal = AuthenticatedUserPrincipal.from(authenticatedUser);
 		JwtTokenService.IssuedToken issuedToken = jwtTokenService.issue(principal, loginAt);
 		auditLogService.record(new AuditLogCommand(
-			user.organizationId(),
-			user.id(),
+			authenticatedUser.organizationId(),
+			authenticatedUser.id(),
 			AuditEventType.LOGIN_SUCCESS,
 			"user",
-			user.id(),
+			authenticatedUser.id(),
 			"SUCCESS",
-			java.util.Map.of(
-				"email", user.email(),
-				"roles", user.roles().stream().map(Enum::name).toList()
-			)
+			loginSuccessDetails(authenticatedUser, previousFailedLoginAttempts)
 		));
 
 		return new LoginResult(issuedToken.value(), issuedToken.expiresInSeconds(), principal);
+	}
+
+	private void handleFailedPasswordAttempt(User user, String normalizedEmail) {
+		if (user.status() != UserStatus.ACTIVE) {
+			return;
+		}
+
+		Instant now = Instant.now(clock);
+		User updatedUser = userRepository.incrementFailedLoginAttempts(user.id(), now);
+		if (updatedUser.failedLoginAttempts() < authHardeningProperties.maxFailedLoginAttempts()) {
+			return;
+		}
+
+		User lockedUser = userRepository.updateStatus(user.id(), UserStatus.LOCKED, now);
+		auditLogService.record(new AuditLogCommand(
+			lockedUser.organizationId(),
+			null,
+			AuditEventType.USER_LOCKED,
+			"user",
+			lockedUser.id(),
+			"SUCCESS",
+			java.util.Map.of(
+				"email", normalizedEmail,
+				"reason", "repeated_failed_logins",
+				"failedLoginAttempts", lockedUser.failedLoginAttempts(),
+				"threshold", authHardeningProperties.maxFailedLoginAttempts()
+			)
+		));
+	}
+
+	private java.util.Map<String, Object> loginSuccessDetails(User user, int previousFailedLoginAttempts) {
+		java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+		details.put("email", user.email());
+		details.put("roles", user.roles().stream().map(Enum::name).toList());
+		if (previousFailedLoginAttempts == 0) {
+			return details;
+		}
+
+		details.put("failedLoginAttemptsReset", true);
+		details.put("previousFailedLoginAttempts", previousFailedLoginAttempts);
+		return details;
 	}
 
 	private String normalizeEmail(String email) {

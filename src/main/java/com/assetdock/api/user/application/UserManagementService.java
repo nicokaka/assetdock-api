@@ -75,6 +75,7 @@ public class UserManagementService {
 			passwordEncoder.encode(command.password()),
 			command.status(),
 			Set.copyOf(command.roles()),
+			0,
 			null,
 			now,
 			now
