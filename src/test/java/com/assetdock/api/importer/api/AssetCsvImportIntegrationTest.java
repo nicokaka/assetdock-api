@@ -1,5 +1,7 @@
 package com.assetdock.api.importer.api;
 
+import com.assetdock.api.support.TestJwtTokens;
+import com.assetdock.api.user.domain.UserRole;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
@@ -384,24 +386,14 @@ class AssetCsvImportIntegrationTest {
 		return UUID.fromString(response.substring(start, end));
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/auth/login")
-				.with(uniqueClientIp())
-				.contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
-
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+	private String login(String email, String password) {
+		return switch (email) {
+			case "orgadmin1@assetdock.dev" -> TestJwtTokens.issue(ORG_ADMIN_1, ORG_1, email, java.util.Set.of(UserRole.ORG_ADMIN));
+			case "manager1@assetdock.dev" -> TestJwtTokens.issue(ASSET_MANAGER_1, ORG_1, email, java.util.Set.of(UserRole.ASSET_MANAGER));
+			case "auditor1@assetdock.dev" -> TestJwtTokens.issue(AUDITOR_1, ORG_1, email, java.util.Set.of(UserRole.AUDITOR));
+			case "viewer1@assetdock.dev" -> TestJwtTokens.issue(VIEWER_1, ORG_1, email, java.util.Set.of(UserRole.VIEWER));
+			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
+		};
 	}
 
 	private String bearer(String token) {

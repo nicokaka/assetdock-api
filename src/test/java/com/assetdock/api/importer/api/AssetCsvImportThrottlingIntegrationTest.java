@@ -1,5 +1,7 @@
 package com.assetdock.api.importer.api;
 
+import com.assetdock.api.support.TestJwtTokens;
+import com.assetdock.api.user.domain.UserRole;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -126,24 +128,8 @@ class AssetCsvImportThrottlingIntegrationTest {
 		org.assertj.core.api.Assertions.assertThat(importJobCount()).isEqualTo(1);
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/auth/login")
-				.with(uniqueClientIp())
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
-
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+	private String login(String email, String password) {
+		return TestJwtTokens.issue(USER_ID, ORGANIZATION_ID, email, java.util.Set.of(UserRole.ORG_ADMIN));
 	}
 
 	private MockMultipartFile csvFile(String fileName, String content) {

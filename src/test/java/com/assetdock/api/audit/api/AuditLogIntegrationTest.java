@@ -1,5 +1,7 @@
 package com.assetdock.api.audit.api;
 
+import com.assetdock.api.support.TestJwtTokens;
+import com.assetdock.api.user.domain.UserRole;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -172,24 +174,11 @@ class AuditLogIntegrationTest {
 			""");
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/auth/login")
-				.with(uniqueClientIp())
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
-
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+	private String login(String email, String password) {
+		return switch (email) {
+			case "orgadmin1@assetdock.dev" -> TestJwtTokens.issue(ORG_ADMIN_1, ORG_1, email, java.util.Set.of(UserRole.ORG_ADMIN));
+			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
+		};
 	}
 
 	private String bearer(String token) {
