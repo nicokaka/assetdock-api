@@ -21,6 +21,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +38,10 @@ class CatalogManagementIntegrationTest {
 	private static final UUID ASSET_MANAGER_1 = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 	private static final UUID AUDITOR_1 = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
 	private static final UUID VIEWER_1 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+	private static final UUID CATEGORY_1 = UUID.fromString("11111111-2222-3333-4444-555555555555");
+	private static final UUID CATEGORY_2 = UUID.fromString("66666666-7777-8888-9999-000000000000");
+	private static final UUID MANUFACTURER_1 = UUID.fromString("12345678-1234-1234-1234-123456789012");
+	private static final UUID LOCATION_1 = UUID.fromString("21098765-4321-4321-4321-210987654321");
 
 	@Container
 	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -70,10 +75,10 @@ class CatalogManagementIntegrationTest {
 		insertUser(ASSET_MANAGER_1, ORG_1, "manager1@assetdock.dev", "ASSET_MANAGER");
 		insertUser(AUDITOR_1, ORG_1, "auditor1@assetdock.dev", "AUDITOR");
 		insertUser(VIEWER_1, ORG_1, "viewer1@assetdock.dev", "VIEWER");
-		insertCategory(ORG_1, "Laptops");
-		insertCategory(ORG_2, "Servers");
-		insertManufacturer(ORG_1, "Lenovo");
-		insertLocation(ORG_1, "Warehouse");
+		insertCategory(CATEGORY_1, ORG_1, "Laptops");
+		insertCategory(CATEGORY_2, ORG_2, "Servers");
+		insertManufacturer(MANUFACTURER_1, ORG_1, "Lenovo");
+		insertLocation(LOCATION_1, ORG_1, "Warehouse");
 	}
 
 	@AfterEach
@@ -117,6 +122,75 @@ class CatalogManagementIntegrationTest {
 					"""))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.name").value("Dell"));
+	}
+
+	@Test
+	void orgAdminUpdatesCategoryAndCanDeactivateIt() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/categories/{id}", CATEGORY_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "name": "Workstations",
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.name").value("Workstations"))
+			.andExpect(jsonPath("$.active").value(false));
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "CATEGORY_UPDATED")
+			.containsEntry("resource_id", CATEGORY_1);
+	}
+
+	@Test
+	void assetManagerUpdatesManufacturerAndCanDeactivateIt() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/manufacturers/{id}", MANUFACTURER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "website": "https://lenovo.example",
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.website").value("https://lenovo.example"))
+			.andExpect(jsonPath("$.active").value(false));
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "MANUFACTURER_UPDATED")
+			.containsEntry("resource_id", MANUFACTURER_1);
+	}
+
+	@Test
+	void assetManagerUpdatesLocationAndCanDeactivateIt() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/locations/{id}", LOCATION_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "description": "Secondary storage",
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.description").value("Secondary storage"))
+			.andExpect(jsonPath("$.active").value(false));
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "LOCATION_UPDATED")
+			.containsEntry("resource_id", LOCATION_1);
 	}
 
 	@Test
@@ -177,6 +251,15 @@ class CatalogManagementIntegrationTest {
 			.containsEntry("organization_id", ORG_1);
 	}
 
+	private Map<String, Object> latestAuditEvent() {
+		return jdbcTemplate.queryForMap("""
+			SELECT event_type, outcome, organization_id, resource_id
+			FROM audit_logs
+			ORDER BY occurred_at DESC
+			LIMIT 1
+			""");
+	}
+
 	private String login(String email, String password) throws Exception {
 		String response = mockMvc.perform(post("/api/v1/auth/login")
 				.contentType(APPLICATION_JSON)
@@ -233,37 +316,37 @@ class CatalogManagementIntegrationTest {
 		);
 	}
 
-	private void insertCategory(UUID organizationId, String name) {
+	private void insertCategory(UUID categoryId, UUID organizationId, String name) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO categories (id, organization_id, name, active, created_at, updated_at)
 				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
-			UUID.randomUUID(),
+			categoryId,
 			organizationId,
 			name
 		);
 	}
 
-	private void insertManufacturer(UUID organizationId, String name) {
+	private void insertManufacturer(UUID manufacturerId, UUID organizationId, String name) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO manufacturers (id, organization_id, name, active, created_at, updated_at)
 				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
-			UUID.randomUUID(),
+			manufacturerId,
 			organizationId,
 			name
 		);
 	}
 
-	private void insertLocation(UUID organizationId, String name) {
+	private void insertLocation(UUID locationId, UUID organizationId, String name) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO locations (id, organization_id, name, active, created_at, updated_at)
 				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
-			UUID.randomUUID(),
+			locationId,
 			organizationId,
 			name
 		);

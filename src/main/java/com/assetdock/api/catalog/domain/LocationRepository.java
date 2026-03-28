@@ -10,6 +10,8 @@ public interface LocationRepository {
 
 	Location save(Location location);
 
+	Location update(Location location);
+
 	List<Location> findAllByOrganizationId(UUID organizationId);
 
 	Optional<Location> findByIdAndOrganizationId(UUID id, UUID organizationId);

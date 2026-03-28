@@ -153,6 +153,57 @@ class AssetManagementIntegrationTest {
 	}
 
 	@Test
+	void retiredAssetCanBeArchived() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}/status", ASSET_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "RETIRED"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("RETIRED"));
+
+		mockMvc.perform(patch("/assets/{id}/archive", ASSET_1)
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.archivedAt").isNotEmpty());
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "ASSET_ARCHIVED")
+			.containsEntry("resource_id", ASSET_1);
+	}
+
+	@Test
+	void activeAssetCannotBeArchived() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}/archive", ASSET_1)
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void archivedAssetCannotBeUpdated() throws Exception {
+		archiveAssetDirectly(ASSET_1, ORG_1);
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}", ASSET_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "displayName": "Should fail"
+					}
+					"""))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
 	void auditorCanListAndReadAssetsOfOwnOrganization() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 
@@ -300,6 +351,21 @@ class AssetManagementIntegrationTest {
 			ORDER BY occurred_at DESC
 			LIMIT 1
 			""");
+	}
+
+	private void archiveAssetDirectly(UUID assetId, UUID organizationId) {
+		jdbcTemplate.update(
+			"""
+				UPDATE assets
+				SET status = 'RETIRED',
+				    archived_at = CURRENT_TIMESTAMP,
+				    updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?
+				  AND organization_id = ?
+				""",
+			assetId,
+			organizationId
+		);
 	}
 
 	private String login(String email, String password) throws Exception {

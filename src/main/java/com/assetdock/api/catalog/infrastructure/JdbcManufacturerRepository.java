@@ -58,6 +58,30 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 	}
 
 	@Override
+	public Manufacturer update(Manufacturer manufacturer) {
+		jdbcClient.sql("""
+			UPDATE manufacturers
+			SET name = :name,
+			    description = :description,
+			    website = :website,
+			    active = :active,
+			    updated_at = :updatedAt
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", manufacturer.id())
+			.param("organizationId", manufacturer.organizationId())
+			.param("name", manufacturer.name())
+			.param("description", manufacturer.description())
+			.param("website", manufacturer.website())
+			.param("active", manufacturer.active())
+			.param("updatedAt", manufacturer.updatedAt())
+			.update();
+
+		return manufacturer;
+	}
+
+	@Override
 	public List<Manufacturer> findAllByOrganizationId(UUID organizationId) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, website, active, created_at, updated_at

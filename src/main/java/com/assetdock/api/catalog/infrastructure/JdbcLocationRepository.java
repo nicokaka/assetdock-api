@@ -57,6 +57,28 @@ public class JdbcLocationRepository implements LocationRepository {
 	}
 
 	@Override
+	public Location update(Location location) {
+		jdbcClient.sql("""
+			UPDATE locations
+			SET name = :name,
+			    description = :description,
+			    active = :active,
+			    updated_at = :updatedAt
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", location.id())
+			.param("organizationId", location.organizationId())
+			.param("name", location.name())
+			.param("description", location.description())
+			.param("active", location.active())
+			.param("updatedAt", location.updatedAt())
+			.update();
+
+		return location;
+	}
+
+	@Override
 	public List<Location> findAllByOrganizationId(UUID organizationId) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, active, created_at, updated_at

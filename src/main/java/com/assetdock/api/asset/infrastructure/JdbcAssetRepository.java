@@ -179,6 +179,24 @@ public class JdbcAssetRepository implements AssetRepository {
 		return asset;
 	}
 
+	@Override
+	public Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE assets
+			SET archived_at = :archivedAt,
+			    updated_at = :updatedAt
+			WHERE id = :assetId
+			  AND organization_id = :organizationId
+			""")
+			.param("assetId", assetId)
+			.param("organizationId", organizationId)
+			.param("archivedAt", archivedAt)
+			.param("updatedAt", updatedAt)
+			.update();
+
+		return findByIdAndOrganizationId(assetId, organizationId).orElseThrow();
+	}
+
 	private String baseSelect() {
 		return """
 			SELECT id, organization_id, asset_tag, serial_number, hostname, display_name, description,

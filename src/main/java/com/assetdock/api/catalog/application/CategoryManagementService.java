@@ -84,6 +84,51 @@ public class CategoryManagementService {
 			.toList();
 	}
 
+	@Transactional
+	public CategoryView update(AuthenticatedUserPrincipal actor, UUID categoryId, UpdateCategoryCommand command) {
+		UUID organizationId = requireActorOrganizationId(actor);
+		tenantAccessService.requireCatalogWriteAccess(actor, organizationId);
+		requireUpdatePayload(command.name(), command.description(), command.active());
+
+		Category existingCategory = categoryRepository.findByIdAndOrganizationId(categoryId, organizationId)
+			.orElseThrow(() -> new InvalidCatalogRequestException("Category does not exist in the current organization."));
+
+		String name = command.name() == null ? existingCategory.name() : normalizeRequired(command.name(), "name");
+		if (!existingCategory.name().equalsIgnoreCase(name)
+			&& categoryRepository.existsByOrganizationIdAndName(organizationId, normalizeName(name))) {
+			throw new CatalogItemAlreadyExistsException("Category", name);
+		}
+
+		Instant now = Instant.now(clock);
+		Category updatedCategory = new Category(
+			existingCategory.id(),
+			existingCategory.organizationId(),
+			name,
+			command.description() == null ? existingCategory.description() : normalizeDescription(command.description()),
+			command.active() == null ? existingCategory.active() : command.active(),
+			existingCategory.createdAt(),
+			now
+		);
+
+		Category persistedCategory = categoryRepository.update(updatedCategory);
+		auditLogService.record(new AuditLogCommand(
+			organizationId,
+			actor.userId(),
+			AuditEventType.CATEGORY_UPDATED,
+			"category",
+			persistedCategory.id(),
+			"SUCCESS",
+			java.util.Map.of(
+				"previousName", existingCategory.name(),
+				"newName", persistedCategory.name(),
+				"previousActive", existingCategory.active(),
+				"newActive", persistedCategory.active()
+			)
+		));
+
+		return toView(persistedCategory);
+	}
+
 	private CategoryView toView(Category category) {
 		return new CategoryView(
 			category.id(),
@@ -107,7 +152,21 @@ public class CategoryManagementService {
 		return name.trim().toLowerCase(Locale.ROOT);
 	}
 
+	private String normalizeRequired(String value, String fieldName) {
+		if (value == null || value.isBlank()) {
+			throw new InvalidCatalogRequestException(fieldName + " is required.");
+		}
+
+		return value.trim();
+	}
+
 	private String normalizeDescription(String description) {
 		return description == null || description.isBlank() ? null : description.trim();
+	}
+
+	private void requireUpdatePayload(String name, String description, Boolean active) {
+		if (name == null && description == null && active == null) {
+			throw new InvalidCatalogRequestException("At least one field must be provided.");
+		}
 	}
 }

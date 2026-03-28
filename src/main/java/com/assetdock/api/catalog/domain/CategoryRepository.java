@@ -10,6 +10,8 @@ public interface CategoryRepository {
 
 	Category save(Category category);
 
+	Category update(Category category);
+
 	List<Category> findAllByOrganizationId(UUID organizationId);
 
 	Optional<Category> findByIdAndOrganizationId(UUID id, UUID organizationId);

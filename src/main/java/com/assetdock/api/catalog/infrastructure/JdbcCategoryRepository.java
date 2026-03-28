@@ -57,6 +57,28 @@ public class JdbcCategoryRepository implements CategoryRepository {
 	}
 
 	@Override
+	public Category update(Category category) {
+		jdbcClient.sql("""
+			UPDATE categories
+			SET name = :name,
+			    description = :description,
+			    active = :active,
+			    updated_at = :updatedAt
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", category.id())
+			.param("organizationId", category.organizationId())
+			.param("name", category.name())
+			.param("description", category.description())
+			.param("active", category.active())
+			.param("updatedAt", category.updatedAt())
+			.update();
+
+		return category;
+	}
+
+	@Override
 	public List<Category> findAllByOrganizationId(UUID organizationId) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, active, created_at, updated_at

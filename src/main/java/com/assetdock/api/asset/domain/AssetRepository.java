@@ -2,6 +2,7 @@ package com.assetdock.api.asset.domain;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 import java.util.UUID;
 
 public interface AssetRepository {
@@ -17,4 +18,6 @@ public interface AssetRepository {
 	Optional<Asset> findById(UUID assetId);
 
 	Asset update(Asset asset);
+
+	Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt);
 }

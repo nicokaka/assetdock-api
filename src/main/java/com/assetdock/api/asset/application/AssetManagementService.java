@@ -116,6 +116,7 @@ public class AssetManagementService {
 	public AssetView update(AuthenticatedUserPrincipal actor, UUID assetId, UpdateAssetCommand command) {
 		Asset existingAsset = findAssetForActor(actor, assetId);
 		tenantAccessService.requireAssetWriteAccess(actor, existingAsset.organizationId());
+		ensureNotArchived(existingAsset, "Archived assets cannot be updated.");
 
 		String assetTag = command.assetTag() == null
 			? existingAsset.assetTag()
@@ -169,6 +170,7 @@ public class AssetManagementService {
 	public AssetView updateStatus(AuthenticatedUserPrincipal actor, UUID assetId, UpdateAssetStatusCommand command) {
 		Asset existingAsset = findAssetForActor(actor, assetId);
 		tenantAccessService.requireAssetWriteAccess(actor, existingAsset.organizationId());
+		ensureNotArchived(existingAsset, "Archived assets cannot change status.");
 
 		Instant now = Instant.now(clock);
 		Asset updatedAsset = new Asset(
@@ -199,6 +201,30 @@ public class AssetManagementService {
 		));
 
 		return toView(persistedAsset);
+	}
+
+	@Transactional
+	public AssetView archive(AuthenticatedUserPrincipal actor, UUID assetId) {
+		Asset existingAsset = findAssetForActor(actor, assetId);
+		tenantAccessService.requireAssetWriteAccess(actor, existingAsset.organizationId());
+
+		if (existingAsset.archivedAt() != null) {
+			return toView(existingAsset);
+		}
+
+		if (existingAsset.status() != AssetStatus.RETIRED && existingAsset.status() != AssetStatus.LOST) {
+			throw new InvalidAssetRequestException("Only RETIRED or LOST assets can be archived.");
+		}
+
+		Instant now = Instant.now(clock);
+		Asset archivedAsset = assetRepository.archive(existingAsset.id(), existingAsset.organizationId(), now, now);
+		recordAudit(actor, archivedAsset, AuditEventType.ASSET_ARCHIVED, Map.of(
+			"assetTag", archivedAsset.assetTag(),
+			"status", archivedAsset.status().name(),
+			"archivedAt", archivedAsset.archivedAt().toString()
+		));
+
+		return toView(archivedAsset);
 	}
 
 	private Asset findAssetForActor(AuthenticatedUserPrincipal actor, UUID assetId) {
@@ -300,5 +326,11 @@ public class AssetManagementService {
 	private String normalizeHostname(String value) {
 		String normalized = normalizeOptional(value);
 		return normalized == null ? null : normalized.toLowerCase(java.util.Locale.ROOT);
+	}
+
+	private void ensureNotArchived(Asset asset, String message) {
+		if (asset.archivedAt() != null) {
+			throw new InvalidAssetRequestException(message);
+		}
 	}
 }
