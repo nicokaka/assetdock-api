@@ -47,6 +47,29 @@ public class AuthenticationService {
 		LockedUserAuthenticationException.class
 	})
 	public LoginResult login(LoginCommand command) {
+		AuthenticatedLogin authenticatedLogin = authenticate(command, "jwt_bearer");
+		JwtTokenService.IssuedToken issuedToken = jwtTokenService.issue(
+			authenticatedLogin.principal(),
+			authenticatedLogin.authenticatedAt()
+		);
+
+		return new LoginResult(
+			issuedToken.value(),
+			issuedToken.expiresInSeconds(),
+			authenticatedLogin.principal()
+		);
+	}
+
+	@Transactional(noRollbackFor = {
+		InvalidCredentialsException.class,
+		InactiveUserAuthenticationException.class,
+		LockedUserAuthenticationException.class
+	})
+	public AuthenticatedLogin authenticateForWeb(LoginCommand command) {
+		return authenticate(command, "web_session");
+	}
+
+	private AuthenticatedLogin authenticate(LoginCommand command, String authMode) {
 		String normalizedEmail = normalizeEmail(command.email());
 		User user = userRepository.findByEmail(normalizedEmail)
 			.orElseThrow(() -> {
@@ -79,7 +102,6 @@ public class AuthenticationService {
 		userRepository.updateLastLoginAt(user.id(), loginAt);
 
 		AuthenticatedUserPrincipal principal = AuthenticatedUserPrincipal.from(authenticatedUser);
-		JwtTokenService.IssuedToken issuedToken = jwtTokenService.issue(principal, loginAt);
 		auditLogService.record(new AuditLogCommand(
 			authenticatedUser.organizationId(),
 			authenticatedUser.id(),
@@ -87,10 +109,10 @@ public class AuthenticationService {
 			"user",
 			authenticatedUser.id(),
 			"SUCCESS",
-			loginSuccessDetails(authenticatedUser, previousFailedLoginAttempts)
+			loginSuccessDetails(authenticatedUser, previousFailedLoginAttempts, authMode)
 		));
 
-		return new LoginResult(issuedToken.value(), issuedToken.expiresInSeconds(), principal);
+		return new AuthenticatedLogin(authenticatedUser, principal, loginAt);
 	}
 
 	private void handleFailedPasswordAttempt(User user, String normalizedEmail) {
@@ -121,10 +143,15 @@ public class AuthenticationService {
 		));
 	}
 
-	private java.util.Map<String, Object> loginSuccessDetails(User user, int previousFailedLoginAttempts) {
+	private java.util.Map<String, Object> loginSuccessDetails(
+		User user,
+		int previousFailedLoginAttempts,
+		String authMode
+	) {
 		java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
 		details.put("email", user.email());
 		details.put("roles", user.roles().stream().map(Enum::name).toList());
+		details.put("authMode", authMode);
 		if (previousFailedLoginAttempts == 0) {
 			return details;
 		}

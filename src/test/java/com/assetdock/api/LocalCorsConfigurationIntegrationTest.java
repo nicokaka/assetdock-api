@@ -14,6 +14,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD;
+import static org.springframework.http.HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS;
 import static org.springframework.http.HttpHeaders.ORIGIN;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -47,9 +48,12 @@ class LocalCorsConfigurationIntegrationTest {
 	void configuredLocalFrontendOriginIsAllowed() throws Exception {
 		mockMvc.perform(options("/assets")
 				.header(ORIGIN, "http://localhost:5173")
+				.header(ACCESS_CONTROL_REQUEST_HEADERS, "Content-Type, X-CSRF-Token")
 				.header(ACCESS_CONTROL_REQUEST_METHOD, "GET"))
 			.andExpect(status().isOk())
 			.andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+			.andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+			.andExpect(header().string("Access-Control-Allow-Headers", containsString("X-CSRF-Token")))
 			.andExpect(header().string("Vary", containsString("Origin")));
 	}
 

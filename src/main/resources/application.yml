@@ -71,6 +71,13 @@ security:
     secret: ${JWT_SECRET:}
     issuer: ${JWT_ISSUER:assetdock-api}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+  web-session:
+    idle-timeout: ${WEB_SESSION_IDLE_TIMEOUT:PT30M}
+    absolute-lifetime: ${WEB_SESSION_ABSOLUTE_LIFETIME:PT8H}
+    session-cookie-name: ${WEB_SESSION_COOKIE_NAME:assetdock_session}
+    csrf-cookie-name: ${WEB_SESSION_CSRF_COOKIE_NAME:assetdock_csrf}
+    secure-cookies: ${WEB_SESSION_SECURE_COOKIES:false}
+    same-site: ${WEB_SESSION_COOKIE_SAME_SITE:Lax}
   throttle:
     enabled: ${THROTTLE_ENABLED:true}
     login:
