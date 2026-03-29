@@ -15,7 +15,7 @@
 Uma API backend de nível profissional para gerenciamento de ativos de hardware e software entre organizações.  
 Construída com **isolamento de tenants**, **controle de acesso baseado em papéis (RBAC)**, **trilhas de auditoria imutáveis** e foco em **integridade de dados** — os pilares que importam em qualquer ambiente consciente de segurança.
 
-[Arquitetura](#arquitetura) · [Modelo de Segurança](#segurança--multi-tenancy) · [Referência da API](#referência-da-api) · [Como Começar](#como-começar)
+[Arquitetura](#arquitetura) · [Modelo de Segurança](#segurança--multi-tenancy) · [Docs de Security Assurance](#docs-de-security-assurance) · [Referência da API](#referência-da-api) · [Como Começar](#como-começar)
 
 </div>
 
@@ -91,6 +91,13 @@ Cliente ──► POST /api/v1/auth/login (credenciais)
 Cliente ──► GET /assets (Authorization: Bearer <token>)
         ◄── Resposta com escopo de tenant
 ```
+
+## Docs de Security Assurance
+
+- [Threat Model](docs/security/threat-model.md)
+- [Trust Boundaries](docs/security/trust-boundaries.md)
+- [Abuse Cases](docs/security/abuse-cases.md)
+- [Security Decisions](docs/security/security-decisions.md)
 
 ---
 
