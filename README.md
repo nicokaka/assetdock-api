@@ -15,7 +15,7 @@
 A production-grade backend API for managing hardware and software assets across organizations.  
 Built with **tenant isolation**, **role-based access control**, **immutable audit trails**, and a focus on **data integrity** — the foundations that matter in any security-conscious environment.
 
-[Architecture](#architecture) · [Security Model](#security--multi-tenancy) · [API Reference](#api-reference) · [Getting Started](#getting-started)
+[Architecture](#architecture) · [Security Model](#security--multi-tenancy) · [Security Assurance Docs](#security-assurance-docs) · [API Reference](#api-reference) · [Getting Started](#getting-started)
 
 </div>
 
@@ -91,6 +91,13 @@ Client ──► POST /api/v1/auth/login (credentials)
 Client ──► GET /assets (Authorization: Bearer <token>)
        ◄── Tenant-scoped response
 ```
+
+## Security Assurance Docs
+
+- [Threat Model](docs/security/threat-model.md)
+- [Trust Boundaries](docs/security/trust-boundaries.md)
+- [Abuse Cases](docs/security/abuse-cases.md)
+- [Security Decisions](docs/security/security-decisions.md)
 
 ---
 
