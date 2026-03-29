@@ -12,6 +12,7 @@ public record User(
 	String passwordHash,
 	UserStatus status,
 	Set<UserRole> roles,
+	int failedLoginAttempts,
 	Instant lastLoginAt,
 	Instant createdAt,
 	Instant updatedAt

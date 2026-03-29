@@ -25,9 +25,16 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
 management:
   endpoints:
     web:
+      discovery:
+        enabled: false
       exposure:
         include: health,info
   endpoint:
@@ -37,12 +44,17 @@ management:
       show-details: never
 springdoc:
   swagger-ui:
+    enabled: false
     path: /swagger-ui.html
     operations-sorter: alpha
     tags-sorter: alpha
   api-docs:
+    enabled: false
     path: /v3/api-docs
   show-actuator: false
+app:
+  surface:
+    public-docs-enabled: ${PUBLIC_DOCS_ENABLED:false}
 info:
   app:
     name: ${spring.application.name}
@@ -53,7 +65,21 @@ logging:
     root: INFO
     org.springframework.security: INFO
 security:
+  auth:
+    max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
   jwt:
     secret: ${JWT_SECRET:}
     issuer: ${JWT_ISSUER:assetdock-api}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
+  throttle:
+    enabled: ${THROTTLE_ENABLED:true}
+    login:
+      enabled: ${LOGIN_THROTTLE_ENABLED:true}
+      max-requests: ${LOGIN_THROTTLE_MAX_REQUESTS:10}
+      window: ${LOGIN_THROTTLE_WINDOW:PT1M}
+      max-tracked-clients: ${LOGIN_THROTTLE_MAX_TRACKED_CLIENTS:10000}
+    asset-import:
+      enabled: ${IMPORT_THROTTLE_ENABLED:true}
+      max-requests: ${IMPORT_THROTTLE_MAX_REQUESTS:5}
+      window: ${IMPORT_THROTTLE_WINDOW:PT5M}
+      max-tracked-clients: ${IMPORT_THROTTLE_MAX_TRACKED_CLIENTS:5000}

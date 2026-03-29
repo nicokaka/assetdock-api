@@ -3,6 +3,7 @@ package com.assetdock.api.user.domain;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface UserRepository {
@@ -11,15 +12,25 @@ public interface UserRepository {
 
 	Optional<User> findById(UUID userId);
 
-	List<User> findAll();
+	List<User> findAll(int limit);
 
-	List<User> findAllByOrganizationId(UUID organizationId);
+	List<User> findAllByOrganizationId(UUID organizationId, int limit);
 
 	boolean existsByEmail(String normalizedEmail);
 
 	User save(User user);
 
 	User updateStatus(UUID userId, UserStatus status, Instant updatedAt);
+
+	User updateRoles(UUID userId, Set<UserRole> roles, Instant updatedAt);
+
+	User incrementFailedLoginAttempts(UUID userId, Instant updatedAt);
+
+	User resetFailedLoginAttempts(UUID userId, Instant updatedAt);
+
+	long countActiveUsersByOrganizationIdAndRole(UUID organizationId, UserRole role);
+
+	long countActiveUsersByRole(UserRole role);
 
 	void updateLastLoginAt(UUID userId, Instant lastLoginAt);
 }

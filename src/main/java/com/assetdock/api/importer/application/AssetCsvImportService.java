@@ -24,8 +24,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -39,6 +41,8 @@ public class AssetCsvImportService {
 	private static final long MAX_FILE_SIZE_BYTES = 2L * 1024L * 1024L;
 	private static final int MAX_DATA_ROWS = 1000;
 	private static final List<String> REQUIRED_COLUMNS = List.of("asset_tag", "display_name");
+	private static final String INVALID_ROW_STRUCTURE_REASON = "Row has invalid CSV structure.";
+	private static final String INVALID_CSV_STRUCTURE_MESSAGE = "Invalid CSV structure.";
 
 	private final AssetImportJobRepository assetImportJobRepository;
 	private final AssetManagementService assetManagementService;
@@ -65,7 +69,8 @@ public class AssetCsvImportService {
 		tenantAccessService.requireImportWriteAccess(actor, organizationId);
 
 		if (file == null || file.isEmpty()) {
-			throw new InvalidAssetImportRequestException("A non-empty CSV file is required.");
+			recordImportFailureAttempt(organizationId, actor.userId(), sanitizeFileName(file == null ? null : file.getOriginalFilename()), "empty-file");
+			throw new InvalidAssetImportRequestException("empty-file", "A non-empty CSV file is required.");
 		}
 
 		Instant now = Instant.now(clock);
@@ -85,15 +90,20 @@ public class AssetCsvImportService {
 			now
 		);
 		assetImportJobRepository.save(job);
-		recordAudit(job, actor.userId(), AuditEventType.CSV_IMPORT_STARTED, Map.of("fileName", job.fileName()));
+		recordAudit(job, actor.userId(), AuditEventType.CSV_IMPORT_STARTED, Map.of("fileName", job.fileName()), "SUCCESS");
 
 		try {
-			List<CSVRecord> records = parseRecords(file);
+			ParsedCsv parsedCsv = parseRecords(file);
+			validateDuplicateAssetTags(parsedCsv.records(), parsedCsv.headerCount());
 			List<AssetImportError> errors = new ArrayList<>();
 			int successCount = 0;
 
-			for (CSVRecord record : records) {
+			for (CSVRecord record : parsedCsv.records()) {
 				int lineNumber = Math.toIntExact(record.getRecordNumber()) + 1;
+				if (isMalformedRow(record, parsedCsv.headerCount())) {
+					errors.add(new AssetImportError(lineNumber, INVALID_ROW_STRUCTURE_REASON));
+					continue;
+				}
 				try {
 					assetManagementService.create(actor, new CreateAssetCommand(
 						requiredValue(record, "asset_tag"),
@@ -122,8 +132,8 @@ public class AssetCsvImportService {
 				job.uploadedByUserId(),
 				errors.isEmpty() ? AssetImportJobStatus.COMPLETED : AssetImportJobStatus.COMPLETED_WITH_ERRORS,
 				job.fileName(),
-				records.size(),
-				records.size(),
+				parsedCsv.records().size(),
+				parsedCsv.records().size(),
 				successCount,
 				errors.size(),
 				new AssetImportSummary(List.copyOf(errors), null),
@@ -136,17 +146,23 @@ public class AssetCsvImportService {
 				"totalRows", completedJob.totalRows(),
 				"successCount", completedJob.successCount(),
 				"errorCount", completedJob.errorCount()
-			));
+			), "SUCCESS");
 			return toView(completedJob);
 		}
 		catch (InvalidAssetImportRequestException exception) {
 			AssetImportJob failedJob = failJob(job, exception.getMessage());
-			recordAudit(failedJob, actor.userId(), AuditEventType.CSV_IMPORT_FAILED, Map.of("reason", exception.getMessage()));
+			recordAudit(failedJob, actor.userId(), AuditEventType.CSV_IMPORT_FAILED, Map.of(
+				"reasonCode", exception.reasonCode(),
+				"fileName", failedJob.fileName()
+			), "FAILURE");
 			return toView(failedJob);
 		}
 		catch (IOException exception) {
 			AssetImportJob failedJob = failJob(job, "The CSV file could not be read.");
-			recordAudit(failedJob, actor.userId(), AuditEventType.CSV_IMPORT_FAILED, Map.of("reason", "file-read-error"));
+			recordAudit(failedJob, actor.userId(), AuditEventType.CSV_IMPORT_FAILED, Map.of(
+				"reasonCode", "file-read-error",
+				"fileName", failedJob.fileName()
+			), "FAILURE");
 			return toView(failedJob);
 		}
 	}
@@ -166,9 +182,9 @@ public class AssetCsvImportService {
 		return toView(job);
 	}
 
-	private List<CSVRecord> parseRecords(MultipartFile file) throws IOException {
+	private ParsedCsv parseRecords(MultipartFile file) throws IOException {
 		if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-			throw new InvalidAssetImportRequestException("CSV file size limit exceeded. Maximum is 2 MB.");
+			throw new InvalidAssetImportRequestException("file-size-limit-exceeded", "CSV file size limit exceeded. Maximum is 2 MB.");
 		}
 
 		try (Reader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
@@ -179,27 +195,74 @@ public class AssetCsvImportService {
 				.setTrim(true)
 				.build()
 				.parse(reader)) {
-			if (parser.getHeaderMap() == null || parser.getHeaderMap().isEmpty()) {
-				throw new InvalidAssetImportRequestException("CSV header is required.");
+			List<String> headers = parser.getHeaderNames();
+			if (headers == null || headers.isEmpty()) {
+				throw new InvalidAssetImportRequestException("missing-header", "CSV header is required.");
 			}
-			validateHeaders(parser.getHeaderMap().keySet());
+			validateHeaders(headers);
 			List<CSVRecord> records = parser.getRecords();
-			if (records.size() > MAX_DATA_ROWS) {
-				throw new InvalidAssetImportRequestException("CSV line limit exceeded. Maximum is 1000 data rows.");
+			if (records.isEmpty()) {
+				throw new InvalidAssetImportRequestException("empty-data-rows", "CSV must include at least one data row.");
 			}
-			return records;
+			if (records.size() > MAX_DATA_ROWS) {
+				throw new InvalidAssetImportRequestException("line-limit-exceeded", "CSV line limit exceeded. Maximum is 1000 data rows.");
+			}
+			return new ParsedCsv(records, headers.size());
 		}
-		catch (IllegalArgumentException exception) {
-			throw new InvalidAssetImportRequestException("Invalid CSV structure.");
+		catch (InvalidAssetImportRequestException exception) {
+			throw exception;
+		}
+		catch (RuntimeException exception) {
+			throw new InvalidAssetImportRequestException("invalid-structure", INVALID_CSV_STRUCTURE_MESSAGE);
 		}
 	}
 
-	private void validateHeaders(java.util.Set<String> headers) {
+	private void validateHeaders(List<String> headers) {
+		Set<String> exactHeaders = new HashSet<>();
+		Set<String> duplicateGuard = new HashSet<>();
+		for (String header : headers) {
+			if (header == null || header.isBlank()) {
+				throw new InvalidAssetImportRequestException("invalid-header", INVALID_CSV_STRUCTURE_MESSAGE);
+			}
+
+			String trimmedHeader = header.trim();
+			if (!duplicateGuard.add(trimmedHeader.toLowerCase(java.util.Locale.ROOT))) {
+				throw new InvalidAssetImportRequestException("invalid-header", INVALID_CSV_STRUCTURE_MESSAGE);
+			}
+			exactHeaders.add(trimmedHeader);
+		}
+
 		for (String requiredColumn : REQUIRED_COLUMNS) {
-			if (!headers.contains(requiredColumn)) {
-				throw new InvalidAssetImportRequestException("CSV must include header '" + requiredColumn + "'.");
+			if (!exactHeaders.contains(requiredColumn)) {
+				throw new InvalidAssetImportRequestException("missing-header", "CSV must include header '" + requiredColumn + "'.");
 			}
 		}
+	}
+
+	private void validateDuplicateAssetTags(List<CSVRecord> records, int expectedColumnCount) {
+		Set<String> seenAssetTags = new HashSet<>();
+		for (CSVRecord record : records) {
+			if (isMalformedRow(record, expectedColumnCount)) {
+				continue;
+			}
+
+			String assetTag = safeOptionalValue(record, "asset_tag");
+			if (assetTag == null) {
+				continue;
+			}
+
+			String normalizedAssetTag = assetTag.trim().toLowerCase(java.util.Locale.ROOT);
+			if (!seenAssetTags.add(normalizedAssetTag)) {
+				throw new InvalidAssetImportRequestException(
+					"duplicate-asset-tag-in-upload",
+					"CSV contains duplicated asset_tag values in the same upload."
+				);
+			}
+		}
+	}
+
+	private boolean isMalformedRow(CSVRecord record, int expectedColumnCount) {
+		return record == null || record.size() != expectedColumnCount;
 	}
 
 	private AssetImportJob failJob(AssetImportJob job, String failureReason) {
@@ -225,7 +288,8 @@ public class AssetCsvImportService {
 		AssetImportJob job,
 		UUID actorUserId,
 		AuditEventType eventType,
-		Map<String, Object> details
+		Map<String, Object> details,
+		String outcome
 	) {
 		auditLogService.record(new AuditLogCommand(
 			job.organizationId(),
@@ -233,8 +297,23 @@ public class AssetCsvImportService {
 			eventType,
 			"asset_import_job",
 			job.id(),
-			"SUCCESS",
+			outcome,
 			details
+		));
+	}
+
+	private void recordImportFailureAttempt(UUID organizationId, UUID actorUserId, String fileName, String reasonCode) {
+		auditLogService.record(new AuditLogCommand(
+			organizationId,
+			actorUserId,
+			AuditEventType.CSV_IMPORT_FAILED,
+			"asset_import_job",
+			null,
+			"FAILURE",
+			Map.of(
+				"reasonCode", reasonCode,
+				"fileName", fileName
+			)
 		));
 	}
 
@@ -289,6 +368,15 @@ public class AssetCsvImportService {
 		return value == null || value.isBlank() ? null : value.trim();
 	}
 
+	private String safeOptionalValue(CSVRecord record, String column) {
+		try {
+			return optionalValue(record, column);
+		}
+		catch (RuntimeException exception) {
+			return null;
+		}
+	}
+
 	private UUID optionalUuid(CSVRecord record, String column) {
 		String value = optionalValue(record, column);
 		if (value == null) {
@@ -336,5 +424,11 @@ public class AssetCsvImportService {
 		}
 
 		return "Row could not be processed.";
+	}
+
+	private record ParsedCsv(
+		List<CSVRecord> records,
+		int headerCount
+	) {
 	}
 }

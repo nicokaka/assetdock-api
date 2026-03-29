@@ -1,5 +1,8 @@
 package com.assetdock.api.catalog.api;
 
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.user.domain.UserRole;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -18,9 +21,12 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +43,10 @@ class CatalogManagementIntegrationTest {
 	private static final UUID ASSET_MANAGER_1 = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 	private static final UUID AUDITOR_1 = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
 	private static final UUID VIEWER_1 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+	private static final UUID CATEGORY_1 = UUID.fromString("11111111-2222-3333-4444-555555555555");
+	private static final UUID CATEGORY_2 = UUID.fromString("66666666-7777-8888-9999-000000000000");
+	private static final UUID MANUFACTURER_1 = UUID.fromString("12345678-1234-1234-1234-123456789012");
+	private static final UUID LOCATION_1 = UUID.fromString("21098765-4321-4321-4321-210987654321");
 
 	@Container
 	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -52,6 +62,9 @@ class CatalogManagementIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private JwtTokenService jwtTokenService;
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
@@ -70,10 +83,10 @@ class CatalogManagementIntegrationTest {
 		insertUser(ASSET_MANAGER_1, ORG_1, "manager1@assetdock.dev", "ASSET_MANAGER");
 		insertUser(AUDITOR_1, ORG_1, "auditor1@assetdock.dev", "AUDITOR");
 		insertUser(VIEWER_1, ORG_1, "viewer1@assetdock.dev", "VIEWER");
-		insertCategory(ORG_1, "Laptops");
-		insertCategory(ORG_2, "Servers");
-		insertManufacturer(ORG_1, "Lenovo");
-		insertLocation(ORG_1, "Warehouse");
+		insertCategory(CATEGORY_1, ORG_1, "Laptops");
+		insertCategory(CATEGORY_2, ORG_2, "Servers");
+		insertManufacturer(MANUFACTURER_1, ORG_1, "Lenovo");
+		insertLocation(LOCATION_1, ORG_1, "Warehouse");
 	}
 
 	@AfterEach
@@ -120,6 +133,75 @@ class CatalogManagementIntegrationTest {
 	}
 
 	@Test
+	void orgAdminUpdatesCategoryAndCanDeactivateIt() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/categories/{id}", CATEGORY_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "name": "Workstations",
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.name").value("Workstations"))
+			.andExpect(jsonPath("$.active").value(false));
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "CATEGORY_UPDATED")
+			.containsEntry("resource_id", CATEGORY_1);
+	}
+
+	@Test
+	void assetManagerUpdatesManufacturerAndCanDeactivateIt() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/manufacturers/{id}", MANUFACTURER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "website": "https://lenovo.example",
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.website").value("https://lenovo.example"))
+			.andExpect(jsonPath("$.active").value(false));
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "MANUFACTURER_UPDATED")
+			.containsEntry("resource_id", MANUFACTURER_1);
+	}
+
+	@Test
+	void assetManagerUpdatesLocationAndCanDeactivateIt() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/locations/{id}", LOCATION_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "description": "Secondary storage",
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.description").value("Secondary storage"))
+			.andExpect(jsonPath("$.active").value(false));
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "LOCATION_UPDATED")
+			.containsEntry("resource_id", LOCATION_1);
+	}
+
+	@Test
 	void auditorListsCatalogsOfOwnOrganization() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 
@@ -140,6 +222,32 @@ class CatalogManagementIntegrationTest {
 	}
 
 	@Test
+	void viewerAndAuditorCannotMutateCatalogs() throws Exception {
+		String viewerToken = login("viewer1@assetdock.dev", "S3curePass!");
+		String auditorToken = login("auditor1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/categories")
+				.header(AUTHORIZATION, bearer(viewerToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "name": "Blocked Viewer Category"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(patch("/manufacturers/{id}", MANUFACTURER_1)
+				.header(AUTHORIZATION, bearer(auditorToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "active": false
+					}
+					"""))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void crossTenantCatalogsAreIsolated() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 
@@ -147,6 +255,24 @@ class CatalogManagementIntegrationTest {
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$[*].name").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("Servers"))));
+	}
+
+	@Test
+	void catalogListShouldBeBoundedToHundredItems() throws Exception {
+		for (int index = 0; index < 110; index++) {
+			insertCategory(
+				UUID.fromString("70000000-0000-0000-0000-%012d".formatted(index + 1)),
+				ORG_1,
+				"Category %03d".formatted(index)
+			);
+		}
+
+		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/categories")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
 	@Test
@@ -177,23 +303,30 @@ class CatalogManagementIntegrationTest {
 			.containsEntry("organization_id", ORG_1);
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/auth/login")
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
+	private Map<String, Object> latestAuditEvent() {
+		return jdbcTemplate.queryForMap("""
+			SELECT event_type, outcome, organization_id, resource_id
+			FROM audit_logs
+			ORDER BY occurred_at DESC
+			LIMIT 1
+			""");
+	}
 
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+	private String login(String email, String password) {
+		return switch (email) {
+			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
+			case "manager1@assetdock.dev" -> issueToken(ASSET_MANAGER_1, ORG_1, email, UserRole.ASSET_MANAGER);
+			case "auditor1@assetdock.dev" -> issueToken(AUDITOR_1, ORG_1, email, UserRole.AUDITOR);
+			case "viewer1@assetdock.dev" -> issueToken(VIEWER_1, ORG_1, email, UserRole.VIEWER);
+			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
+		};
+	}
+
+	private String issueToken(UUID userId, UUID organizationId, String email, UserRole... roles) {
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(userId, organizationId, email, java.util.Set.of(roles)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private String bearer(String token) {
@@ -233,37 +366,37 @@ class CatalogManagementIntegrationTest {
 		);
 	}
 
-	private void insertCategory(UUID organizationId, String name) {
+	private void insertCategory(UUID categoryId, UUID organizationId, String name) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO categories (id, organization_id, name, active, created_at, updated_at)
 				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
-			UUID.randomUUID(),
+			categoryId,
 			organizationId,
 			name
 		);
 	}
 
-	private void insertManufacturer(UUID organizationId, String name) {
+	private void insertManufacturer(UUID manufacturerId, UUID organizationId, String name) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO manufacturers (id, organization_id, name, active, created_at, updated_at)
 				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
-			UUID.randomUUID(),
+			manufacturerId,
 			organizationId,
 			name
 		);
 	}
 
-	private void insertLocation(UUID organizationId, String name) {
+	private void insertLocation(UUID locationId, UUID organizationId, String name) {
 		jdbcTemplate.update(
 			"""
 				INSERT INTO locations (id, organization_id, name, active, created_at, updated_at)
 				VALUES (?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 				""",
-			UUID.randomUUID(),
+			locationId,
 			organizationId,
 			name
 		);

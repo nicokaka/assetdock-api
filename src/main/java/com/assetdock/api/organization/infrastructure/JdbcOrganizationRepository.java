@@ -2,6 +2,7 @@ package com.assetdock.api.organization.infrastructure;
 
 import com.assetdock.api.organization.domain.Organization;
 import com.assetdock.api.organization.domain.OrganizationRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -52,8 +53,8 @@ public class JdbcOrganizationRepository implements OrganizationRepository {
 			.param("id", organization.id())
 			.param("name", organization.name())
 			.param("slug", organization.slug())
-			.param("createdAt", organization.createdAt())
-			.param("updatedAt", organization.updatedAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(organization.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(organization.updatedAt()))
 			.update();
 
 		return organization;
@@ -64,8 +65,8 @@ public class JdbcOrganizationRepository implements OrganizationRepository {
 			resultSet.getObject("id", UUID.class),
 			resultSet.getString("name"),
 			resultSet.getString("slug"),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

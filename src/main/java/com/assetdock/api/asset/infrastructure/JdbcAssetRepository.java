@@ -3,6 +3,7 @@ package com.assetdock.api.asset.infrastructure;
 import com.assetdock.api.asset.domain.Asset;
 import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.asset.domain.AssetStatus;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -74,7 +75,7 @@ public class JdbcAssetRepository implements AssetRepository {
 				:manufacturerId,
 				:currentLocationId,
 				:currentAssignedUserId,
-				:status,
+				CAST(:status AS asset_status),
 				:purchaseDate,
 				:warrantyExpiryDate,
 				:archivedAt,
@@ -96,21 +97,23 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("status", asset.status().name())
 			.param("purchaseDate", asset.purchaseDate())
 			.param("warrantyExpiryDate", asset.warrantyExpiryDate())
-			.param("archivedAt", asset.archivedAt())
-			.param("createdAt", asset.createdAt())
-			.param("updatedAt", asset.updatedAt())
+			.param("archivedAt", JdbcColumnReaders.toOffsetDateTime(asset.archivedAt()))
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(asset.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(asset.updatedAt()))
 			.update();
 
 		return asset;
 	}
 
 	@Override
-	public List<Asset> findAllByOrganizationId(UUID organizationId) {
+	public List<Asset> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE organization_id = :organizationId
 			ORDER BY display_name, asset_tag
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapAsset)
 			.list();
 	}
@@ -150,7 +153,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			    manufacturer_id = :manufacturerId,
 			    current_location_id = :currentLocationId,
 			    current_assigned_user_id = :currentAssignedUserId,
-			    status = :status,
+			    status = CAST(:status AS asset_status),
 			    purchase_date = :purchaseDate,
 			    warranty_expiry_date = :warrantyExpiryDate,
 			    archived_at = :archivedAt,
@@ -172,11 +175,29 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("status", asset.status().name())
 			.param("purchaseDate", asset.purchaseDate())
 			.param("warrantyExpiryDate", asset.warrantyExpiryDate())
-			.param("archivedAt", asset.archivedAt())
-			.param("updatedAt", asset.updatedAt())
+			.param("archivedAt", JdbcColumnReaders.toOffsetDateTime(asset.archivedAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(asset.updatedAt()))
 			.update();
 
 		return asset;
+	}
+
+	@Override
+	public Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE assets
+			SET archived_at = :archivedAt,
+			    updated_at = :updatedAt
+			WHERE id = :assetId
+			  AND organization_id = :organizationId
+			""")
+			.param("assetId", assetId)
+			.param("organizationId", organizationId)
+			.param("archivedAt", JdbcColumnReaders.toOffsetDateTime(archivedAt))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.update();
+
+		return findByIdAndOrganizationId(assetId, organizationId).orElseThrow();
 	}
 
 	private String baseSelect() {
@@ -204,9 +225,9 @@ public class JdbcAssetRepository implements AssetRepository {
 			AssetStatus.valueOf(resultSet.getString("status")),
 			resultSet.getObject("purchase_date", LocalDate.class),
 			resultSet.getObject("warranty_expiry_date", LocalDate.class),
-			resultSet.getObject("archived_at", Instant.class),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "archived_at"),
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

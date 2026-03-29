@@ -4,6 +4,7 @@ import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
 import com.assetdock.api.user.domain.UserStatus;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -49,8 +50,12 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
-	public List<User> findAll() {
-		return jdbcClient.sql(baseSelect() + "ORDER BY full_name, email")
+	public List<User> findAll(int limit) {
+		return jdbcClient.sql(baseSelect() + """
+			ORDER BY full_name, email
+			LIMIT :limit
+			""")
+			.param("limit", limit)
 			.query(this::mapUserSnapshot)
 			.list()
 			.stream()
@@ -59,12 +64,14 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
-	public List<User> findAllByOrganizationId(UUID organizationId) {
+	public List<User> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE organization_id = :organizationId
 			ORDER BY full_name, email
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapUserSnapshot)
 			.list()
 			.stream()
@@ -92,7 +99,7 @@ public class JdbcUserRepository implements UserRepository {
 	public User save(User user) {
 		jdbcClient.sql("""
 			INSERT INTO users (id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at)
-			VALUES (:id, :organizationId, :email, :fullName, :passwordHash, :status, :lastLoginAt, :createdAt, :updatedAt)
+			VALUES (:id, :organizationId, :email, :fullName, :passwordHash, CAST(:status AS user_status), :lastLoginAt, :createdAt, :updatedAt)
 			""")
 			.param("id", user.id())
 			.param("organizationId", user.organizationId())
@@ -100,18 +107,18 @@ public class JdbcUserRepository implements UserRepository {
 			.param("fullName", user.fullName())
 			.param("passwordHash", user.passwordHash())
 			.param("status", user.status().name())
-			.param("lastLoginAt", user.lastLoginAt())
-			.param("createdAt", user.createdAt())
-			.param("updatedAt", user.updatedAt())
+			.param("lastLoginAt", JdbcColumnReaders.toOffsetDateTime(user.lastLoginAt()))
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(user.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(user.updatedAt()))
 			.update();
 
 		user.roles().forEach(role -> jdbcClient.sql("""
 			INSERT INTO user_roles (user_id, role, created_at)
-			VALUES (:userId, :role, :createdAt)
+			VALUES (:userId, CAST(:role AS user_role), :createdAt)
 			""")
 			.param("userId", user.id())
 			.param("role", role.name())
-			.param("createdAt", user.createdAt())
+				.param("createdAt", JdbcColumnReaders.toOffsetDateTime(user.createdAt()))
 			.update());
 
 		return user;
@@ -121,16 +128,110 @@ public class JdbcUserRepository implements UserRepository {
 	public User updateStatus(UUID userId, UserStatus status, Instant updatedAt) {
 		jdbcClient.sql("""
 			UPDATE users
-			SET status = :status,
+			SET status = CAST(:status AS user_status),
 			    updated_at = :updatedAt
 			WHERE id = :userId
 			""")
 			.param("status", status.name())
-			.param("updatedAt", updatedAt)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.param("userId", userId)
 			.update();
 
 		return findById(userId).orElseThrow();
+	}
+
+	@Override
+	public User updateRoles(UUID userId, Set<UserRole> roles, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.param("userId", userId)
+			.update();
+
+		jdbcClient.sql("""
+			DELETE FROM user_roles
+			WHERE user_id = :userId
+			""")
+			.param("userId", userId)
+			.update();
+
+		roles.forEach(role -> jdbcClient.sql("""
+			INSERT INTO user_roles (user_id, role, created_at)
+			VALUES (:userId, CAST(:role AS user_role), :createdAt)
+			""")
+			.param("userId", userId)
+			.param("role", role.name())
+				.param("createdAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+				.update());
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
+	public User incrementFailedLoginAttempts(UUID userId, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET failed_login_attempts = failed_login_attempts + 1,
+			    updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.param("userId", userId)
+			.update();
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
+	public User resetFailedLoginAttempts(UUID userId, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET failed_login_attempts = 0,
+			    updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.param("userId", userId)
+			.update();
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
+	public long countActiveUsersByOrganizationIdAndRole(UUID organizationId, UserRole role) {
+		Long count = jdbcClient.sql("""
+			SELECT COUNT(*)
+			FROM users u
+			INNER JOIN user_roles ur ON ur.user_id = u.id
+			WHERE u.organization_id = :organizationId
+			  AND u.status = 'ACTIVE'
+			  AND ur.role = CAST(:role AS user_role)
+			""")
+			.param("organizationId", organizationId)
+			.param("role", role.name())
+			.query(Long.class)
+			.single();
+
+		return count == null ? 0 : count;
+	}
+
+	@Override
+	public long countActiveUsersByRole(UserRole role) {
+		Long count = jdbcClient.sql("""
+			SELECT COUNT(*)
+			FROM users u
+			INNER JOIN user_roles ur ON ur.user_id = u.id
+			WHERE u.status = 'ACTIVE'
+			  AND ur.role = CAST(:role AS user_role)
+			""")
+			.param("role", role.name())
+			.query(Long.class)
+			.single();
+
+		return count == null ? 0 : count;
 	}
 
 	@Override
@@ -141,8 +242,8 @@ public class JdbcUserRepository implements UserRepository {
 			    updated_at = :updatedAt
 			WHERE id = :userId
 			""")
-			.param("lastLoginAt", lastLoginAt)
-			.param("updatedAt", lastLoginAt)
+			.param("lastLoginAt", JdbcColumnReaders.toOffsetDateTime(lastLoginAt))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(lastLoginAt))
 			.param("userId", userId)
 			.update();
 	}
@@ -156,6 +257,7 @@ public class JdbcUserRepository implements UserRepository {
 			snapshot.passwordHash(),
 			snapshot.status(),
 			loadRoles(snapshot.id()),
+			snapshot.failedLoginAttempts(),
 			snapshot.lastLoginAt(),
 			snapshot.createdAt(),
 			snapshot.updatedAt()
@@ -178,7 +280,7 @@ public class JdbcUserRepository implements UserRepository {
 
 	private String baseSelect() {
 		return """
-			SELECT id, organization_id, email, full_name, password_hash, status, last_login_at, created_at, updated_at
+			SELECT id, organization_id, email, full_name, password_hash, status, failed_login_attempts, last_login_at, created_at, updated_at
 			FROM users
 			""";
 	}
@@ -191,9 +293,10 @@ public class JdbcUserRepository implements UserRepository {
 			resultSet.getString("full_name"),
 			resultSet.getString("password_hash"),
 			UserStatus.valueOf(resultSet.getString("status")),
-			resultSet.getObject("last_login_at", Instant.class),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			resultSet.getInt("failed_login_attempts"),
+			JdbcColumnReaders.getInstant(resultSet, "last_login_at"),
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 
@@ -204,6 +307,7 @@ public class JdbcUserRepository implements UserRepository {
 		String fullName,
 		String passwordHash,
 		UserStatus status,
+		int failedLoginAttempts,
 		Instant lastLoginAt,
 		Instant createdAt,
 		Instant updatedAt

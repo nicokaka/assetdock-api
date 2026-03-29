@@ -11,7 +11,7 @@ public interface AssetAssignmentRepository {
 
 	Optional<AssetAssignment> findActiveByAssetIdAndOrganizationId(UUID assetId, UUID organizationId);
 
-	List<AssetAssignment> findAllByAssetIdAndOrganizationId(UUID assetId, UUID organizationId);
+	List<AssetAssignment> findAllByAssetIdAndOrganizationId(UUID assetId, UUID organizationId, int limit);
 
 	AssetAssignment closeActiveAssignment(UUID assignmentId, UUID organizationId, Instant unassignedAt);
 }

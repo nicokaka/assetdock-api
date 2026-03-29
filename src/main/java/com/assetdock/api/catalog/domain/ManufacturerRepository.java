@@ -10,7 +10,9 @@ public interface ManufacturerRepository {
 
 	Manufacturer save(Manufacturer manufacturer);
 
-	List<Manufacturer> findAllByOrganizationId(UUID organizationId);
+	Manufacturer update(Manufacturer manufacturer);
+
+	List<Manufacturer> findAllByOrganizationId(UUID organizationId, int limit);
 
 	Optional<Manufacturer> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

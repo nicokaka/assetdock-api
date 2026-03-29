@@ -104,4 +104,12 @@ public class AssetController {
 	) {
 		return assetManagementService.updateStatus(principal, id, new UpdateAssetStatusCommand(request.status()));
 	}
+
+	@PatchMapping("/{id}/archive")
+	AssetView archive(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal
+	) {
+		return assetManagementService.archive(principal, id);
+	}
 }

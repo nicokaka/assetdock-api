@@ -62,6 +62,15 @@ public class UserController {
 		return userManagementService.getUser(principal, id);
 	}
 
+	@PatchMapping("/{id}/roles")
+	UserView updateRoles(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@Valid @RequestBody UpdateUserRolesRequest request
+	) {
+		return userManagementService.updateRoles(principal, id, request.roles());
+	}
+
 	@PatchMapping("/{id}/status")
 	UserView updateStatus(
 		@PathVariable UUID id,

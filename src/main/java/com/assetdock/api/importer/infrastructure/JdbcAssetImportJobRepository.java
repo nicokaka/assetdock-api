@@ -4,6 +4,7 @@ import com.assetdock.api.importer.domain.AssetImportJob;
 import com.assetdock.api.importer.domain.AssetImportJobRepository;
 import com.assetdock.api.importer.domain.AssetImportJobStatus;
 import com.assetdock.api.importer.domain.AssetImportSummary;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
@@ -47,7 +48,7 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 				:id,
 				:organizationId,
 				:uploadedByUserId,
-				:status,
+				CAST(:status AS asset_import_job_status),
 				:fileName,
 				:totalRows,
 				:processedRows,
@@ -69,9 +70,9 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 			.param("successCount", job.successCount())
 			.param("errorCount", job.errorCount())
 			.param("summaryJson", serializeSummary(job.summary()))
-			.param("startedAt", job.startedAt())
-			.param("finishedAt", job.finishedAt())
-			.param("createdAt", job.createdAt())
+			.param("startedAt", JdbcColumnReaders.toOffsetDateTime(job.startedAt()))
+			.param("finishedAt", JdbcColumnReaders.toOffsetDateTime(job.finishedAt()))
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(job.createdAt()))
 			.update();
 
 		return job;
@@ -81,7 +82,7 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 	public AssetImportJob update(AssetImportJob job) {
 		jdbcClient.sql("""
 			UPDATE asset_import_jobs
-			SET status = :status,
+			SET status = CAST(:status AS asset_import_job_status),
 			    total_rows = :totalRows,
 			    processed_rows = :processedRows,
 			    success_count = :successCount,
@@ -99,7 +100,7 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 			.param("successCount", job.successCount())
 			.param("errorCount", job.errorCount())
 			.param("summaryJson", serializeSummary(job.summary()))
-			.param("finishedAt", job.finishedAt())
+			.param("finishedAt", JdbcColumnReaders.toOffsetDateTime(job.finishedAt()))
 			.update();
 
 		return job;
@@ -147,9 +148,9 @@ public class JdbcAssetImportJobRepository implements AssetImportJobRepository {
 			resultSet.getInt("success_count"),
 			resultSet.getInt("error_count"),
 			deserializeSummary(resultSet.getString("result_summary_json")),
-			resultSet.getObject("started_at", Instant.class),
-			resultSet.getObject("finished_at", Instant.class),
-			resultSet.getObject("created_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "started_at"),
+			JdbcColumnReaders.getInstant(resultSet, "finished_at"),
+			JdbcColumnReaders.getInstant(resultSet, "created_at")
 		);
 	}
 

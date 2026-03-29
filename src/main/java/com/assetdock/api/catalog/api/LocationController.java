@@ -9,7 +9,9 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -44,5 +46,22 @@ public class LocationController {
 	@GetMapping
 	List<LocationView> list(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
 		return locationManagementService.list(principal);
+	}
+
+	@PatchMapping("/{id}")
+	LocationView update(
+		@PathVariable java.util.UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@Valid @RequestBody UpdateLocationRequest request
+	) {
+		return locationManagementService.update(
+			principal,
+			id,
+			new com.assetdock.api.catalog.application.UpdateLocationCommand(
+				request.name(),
+				request.description(),
+				request.active()
+			)
+		);
 	}
 }

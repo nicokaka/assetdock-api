@@ -10,7 +10,9 @@ public interface LocationRepository {
 
 	Location save(Location location);
 
-	List<Location> findAllByOrganizationId(UUID organizationId);
+	Location update(Location location);
+
+	List<Location> findAllByOrganizationId(UUID organizationId, int limit);
 
 	Optional<Location> findByIdAndOrganizationId(UUID id, UUID organizationId);
 }

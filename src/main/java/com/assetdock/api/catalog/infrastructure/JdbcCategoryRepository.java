@@ -2,6 +2,7 @@ package com.assetdock.api.catalog.infrastructure;
 
 import com.assetdock.api.catalog.domain.Category;
 import com.assetdock.api.catalog.domain.CategoryRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -49,22 +50,46 @@ public class JdbcCategoryRepository implements CategoryRepository {
 			.param("name", category.name())
 			.param("description", category.description())
 			.param("active", category.active())
-			.param("createdAt", category.createdAt())
-			.param("updatedAt", category.updatedAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(category.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(category.updatedAt()))
 			.update();
 
 		return category;
 	}
 
 	@Override
-	public List<Category> findAllByOrganizationId(UUID organizationId) {
+	public Category update(Category category) {
+		jdbcClient.sql("""
+			UPDATE categories
+			SET name = :name,
+			    description = :description,
+			    active = :active,
+			    updated_at = :updatedAt
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", category.id())
+			.param("organizationId", category.organizationId())
+			.param("name", category.name())
+			.param("description", category.description())
+			.param("active", category.active())
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(category.updatedAt()))
+			.update();
+
+		return category;
+	}
+
+	@Override
+	public List<Category> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, active, created_at, updated_at
 			FROM categories
 			WHERE organization_id = :organizationId
 			ORDER BY name
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapCategory)
 			.list();
 	}
@@ -90,8 +115,8 @@ public class JdbcCategoryRepository implements CategoryRepository {
 			resultSet.getString("name"),
 			resultSet.getString("description"),
 			resultSet.getBoolean("active"),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

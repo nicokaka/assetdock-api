@@ -2,6 +2,7 @@ package com.assetdock.api.catalog.infrastructure;
 
 import com.assetdock.api.catalog.domain.Location;
 import com.assetdock.api.catalog.domain.LocationRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -49,22 +50,46 @@ public class JdbcLocationRepository implements LocationRepository {
 			.param("name", location.name())
 			.param("description", location.description())
 			.param("active", location.active())
-			.param("createdAt", location.createdAt())
-			.param("updatedAt", location.updatedAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(location.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(location.updatedAt()))
 			.update();
 
 		return location;
 	}
 
 	@Override
-	public List<Location> findAllByOrganizationId(UUID organizationId) {
+	public Location update(Location location) {
+		jdbcClient.sql("""
+			UPDATE locations
+			SET name = :name,
+			    description = :description,
+			    active = :active,
+			    updated_at = :updatedAt
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", location.id())
+			.param("organizationId", location.organizationId())
+			.param("name", location.name())
+			.param("description", location.description())
+			.param("active", location.active())
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(location.updatedAt()))
+			.update();
+
+		return location;
+	}
+
+	@Override
+	public List<Location> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, active, created_at, updated_at
 			FROM locations
 			WHERE organization_id = :organizationId
 			ORDER BY name
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapLocation)
 			.list();
 	}
@@ -90,8 +115,8 @@ public class JdbcLocationRepository implements LocationRepository {
 			resultSet.getString("name"),
 			resultSet.getString("description"),
 			resultSet.getBoolean("active"),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

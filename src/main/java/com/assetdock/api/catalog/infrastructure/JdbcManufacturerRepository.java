@@ -2,6 +2,7 @@ package com.assetdock.api.catalog.infrastructure;
 
 import com.assetdock.api.catalog.domain.Manufacturer;
 import com.assetdock.api.catalog.domain.ManufacturerRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -50,22 +51,48 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 			.param("description", manufacturer.description())
 			.param("website", manufacturer.website())
 			.param("active", manufacturer.active())
-			.param("createdAt", manufacturer.createdAt())
-			.param("updatedAt", manufacturer.updatedAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(manufacturer.createdAt()))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(manufacturer.updatedAt()))
 			.update();
 
 		return manufacturer;
 	}
 
 	@Override
-	public List<Manufacturer> findAllByOrganizationId(UUID organizationId) {
+	public Manufacturer update(Manufacturer manufacturer) {
+		jdbcClient.sql("""
+			UPDATE manufacturers
+			SET name = :name,
+			    description = :description,
+			    website = :website,
+			    active = :active,
+			    updated_at = :updatedAt
+			WHERE id = :id
+			  AND organization_id = :organizationId
+			""")
+			.param("id", manufacturer.id())
+			.param("organizationId", manufacturer.organizationId())
+			.param("name", manufacturer.name())
+			.param("description", manufacturer.description())
+			.param("website", manufacturer.website())
+			.param("active", manufacturer.active())
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(manufacturer.updatedAt()))
+			.update();
+
+		return manufacturer;
+	}
+
+	@Override
+	public List<Manufacturer> findAllByOrganizationId(UUID organizationId, int limit) {
 		return jdbcClient.sql("""
 			SELECT id, organization_id, name, description, website, active, created_at, updated_at
 			FROM manufacturers
 			WHERE organization_id = :organizationId
 			ORDER BY name
+			LIMIT :limit
 			""")
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapManufacturer)
 			.list();
 	}
@@ -92,8 +119,8 @@ public class JdbcManufacturerRepository implements ManufacturerRepository {
 			resultSet.getString("description"),
 			resultSet.getString("website"),
 			resultSet.getBoolean("active"),
-			resultSet.getObject("created_at", Instant.class),
-			resultSet.getObject("updated_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at"),
+			JdbcColumnReaders.getInstant(resultSet, "updated_at")
 		);
 	}
 }

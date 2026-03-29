@@ -5,6 +5,22 @@ spring:
       minimum-idle: 1
   main:
     banner-mode: "off"
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+security:
+  throttle:
+    enabled: false
+    login:
+      enabled: false
+    asset-import:
+      enabled: false
+app:
+  surface:
+    public-docs-enabled: true
 logging:
   level:
     root: WARN

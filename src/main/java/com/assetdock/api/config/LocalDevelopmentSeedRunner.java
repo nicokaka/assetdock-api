@@ -75,6 +75,7 @@ public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 			passwordEncoder.encode(properties.adminPassword()),
 			UserStatus.ACTIVE,
 			Set.of(UserRole.ORG_ADMIN),
+			0,
 			null,
 			now,
 			now

@@ -3,6 +3,7 @@ package com.assetdock.api.audit.infrastructure;
 import com.assetdock.api.audit.domain.AuditLogEntry;
 import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.audit.domain.AuditLogRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,7 +49,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 				:id,
 				:organizationId,
 				:actorUserId,
-				:eventType,
+				CAST(:eventType AS audit_event_type),
 				:resourceType,
 				:resourceId,
 				:outcome,
@@ -70,7 +71,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			.param("userAgent", entry.userAgent())
 			.param("requestId", entry.requestId())
 			.param("detailsJson", serialize(entry))
-			.param("occurredAt", entry.occurredAt())
+			.param("occurredAt", JdbcColumnReaders.toOffsetDateTime(entry.occurredAt()))
 			.update();
 	}
 
@@ -99,9 +100,9 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			SELECT id, organization_id, actor_user_id, event_type, resource_type, resource_id, outcome,
 			       ip_address, user_agent, request_id, details_json::text AS details_json, occurred_at
 			""" + buildWhereClause(organizationId, eventType, from, to) + """
-			ORDER BY occurred_at DESC
-			LIMIT :limit OFFSET :offset
-			""";
+				ORDER BY occurred_at DESC
+				LIMIT :limit OFFSET :offset
+				""";
 
 		JdbcClient.StatementSpec statement = jdbcClient.sql(sql)
 			.param("limit", limit)
@@ -121,7 +122,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			sqlBuilder.append(" AND organization_id = :organizationId");
 		}
 		if (eventType != null) {
-			sqlBuilder.append(" AND event_type = :eventType");
+			sqlBuilder.append(" AND event_type = CAST(:eventType AS audit_event_type)");
 		}
 		if (from != null) {
 			sqlBuilder.append(" AND occurred_at >= :from");
@@ -129,6 +130,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 		if (to != null) {
 			sqlBuilder.append(" AND occurred_at <= :to");
 		}
+		sqlBuilder.append(' ');
 		return sqlBuilder.toString();
 	}
 
@@ -147,10 +149,10 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			result = result.param("eventType", eventType.name());
 		}
 		if (from != null) {
-			result = result.param("from", from);
+			result = result.param("from", JdbcColumnReaders.toOffsetDateTime(from));
 		}
 		if (to != null) {
-			result = result.param("to", to);
+			result = result.param("to", JdbcColumnReaders.toOffsetDateTime(to));
 		}
 		return result;
 	}
@@ -168,7 +170,7 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 			resultSet.getString("user_agent"),
 			resultSet.getString("request_id"),
 			deserializeDetails(resultSet.getString("details_json")),
-			resultSet.getObject("occurred_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "occurred_at")
 		);
 	}
 

@@ -58,7 +58,13 @@ class AssetdockApiApplicationTests {
 	}
 
 	@Test
-	void openApiDocsAreAvailable() throws Exception {
+	void actuatorInfoRequiresAuthentication() throws Exception {
+		mockMvc.perform(get("/actuator/info"))
+			.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void openApiDocsAreAvailableInTestProfile() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
 			.andExpect(status().isOk());
 	}

@@ -1,5 +1,8 @@
 package com.assetdock.api.asset.api;
 
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.user.domain.UserRole;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -18,8 +21,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -63,6 +68,9 @@ class AssetManagementIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
+
+	@Autowired
+	private JwtTokenService jwtTokenService;
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
@@ -153,6 +161,57 @@ class AssetManagementIntegrationTest {
 	}
 
 	@Test
+	void retiredAssetCanBeArchived() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}/status", ASSET_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "RETIRED"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.status").value("RETIRED"));
+
+		mockMvc.perform(patch("/assets/{id}/archive", ASSET_1)
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.archivedAt").isNotEmpty());
+
+		Map<String, Object> event = latestAuditEvent();
+		org.assertj.core.api.Assertions.assertThat(event)
+			.containsEntry("event_type", "ASSET_ARCHIVED")
+			.containsEntry("resource_id", ASSET_1);
+	}
+
+	@Test
+	void activeAssetCannotBeArchived() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}/archive", ASSET_1)
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void archivedAssetCannotBeUpdated() throws Exception {
+		archiveAssetDirectly(ASSET_1, ORG_1);
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}", ASSET_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "displayName": "Should fail"
+					}
+					"""))
+			.andExpect(status().isBadRequest());
+	}
+
+	@Test
 	void auditorCanListAndReadAssetsOfOwnOrganization() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 
@@ -183,12 +242,62 @@ class AssetManagementIntegrationTest {
 	}
 
 	@Test
+	void viewerAndAuditorCannotMutateAssets() throws Exception {
+		String viewerToken = login("viewer1@assetdock.dev", "S3curePass!");
+		String auditorToken = login("auditor1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(post("/assets")
+				.header(AUTHORIZATION, bearer(viewerToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "assetTag": "AST-BLOCK-1",
+					  "displayName": "Blocked asset"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+
+		mockMvc.perform(patch("/assets/{id}/status", ASSET_1)
+				.header(AUTHORIZATION, bearer(auditorToken))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "ASSIGNED"
+					}
+					"""))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
 	void crossTenantAccessToAssetsIsDenied() throws Exception {
 		String token = login("auditor1@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(get("/assets/{id}", ASSET_2)
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void assetListShouldBeBoundedToHundredItems() throws Exception {
+		for (int index = 0; index < 110; index++) {
+			insertAsset(
+				UUID.fromString("91000000-0000-0000-0000-%012d".formatted(index + 1)),
+				ORG_1,
+				"AST-BULK-%03d".formatted(index),
+				CATEGORY_1,
+				MANUFACTURER_1,
+				LOCATION_1,
+				null,
+				"IN_STOCK"
+			);
+		}
+
+		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/assets")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
 	@Test
@@ -302,23 +411,36 @@ class AssetManagementIntegrationTest {
 			""");
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/auth/login")
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
+	private void archiveAssetDirectly(UUID assetId, UUID organizationId) {
+		jdbcTemplate.update(
+			"""
+				UPDATE assets
+				SET status = 'RETIRED',
+				    archived_at = CURRENT_TIMESTAMP,
+				    updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?
+				  AND organization_id = ?
+				""",
+			assetId,
+			organizationId
+		);
+	}
 
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+	private String login(String email, String password) {
+		return switch (email) {
+			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
+			case "manager1@assetdock.dev" -> issueToken(ASSET_MANAGER_1, ORG_1, email, UserRole.ASSET_MANAGER);
+			case "auditor1@assetdock.dev" -> issueToken(AUDITOR_1, ORG_1, email, UserRole.AUDITOR);
+			case "viewer1@assetdock.dev" -> issueToken(VIEWER_1, ORG_1, email, UserRole.VIEWER);
+			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
+		};
+	}
+
+	private String issueToken(UUID userId, UUID organizationId, String email, UserRole... roles) {
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(userId, organizationId, email, java.util.Set.of(roles)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private String bearer(String token) {

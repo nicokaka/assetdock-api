@@ -1,5 +1,8 @@
 package com.assetdock.api.audit.api;
 
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.user.domain.UserRole;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -18,6 +21,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -49,6 +53,9 @@ class AuditLogIntegrationTest {
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
+	@Autowired
+	private JwtTokenService jwtTokenService;
+
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -73,6 +80,7 @@ class AuditLogIntegrationTest {
 	@Test
 	void successfulLoginShouldPersistAuditEvent() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -94,6 +102,7 @@ class AuditLogIntegrationTest {
 	@Test
 	void invalidLoginShouldPersistAuditEvent() throws Exception {
 		mockMvc.perform(post("/api/v1/auth/login")
+				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
@@ -153,7 +162,7 @@ class AuditLogIntegrationTest {
 
 		Map<String, Object> event = latestAuditEvent();
 		org.assertj.core.api.Assertions.assertThat(event)
-			.containsEntry("event_type", "USER_DISABLED")
+			.containsEntry("event_type", "USER_LOCKED")
 			.containsEntry("outcome", "SUCCESS")
 			.containsEntry("organization_id", ORG_1)
 			.containsEntry("actor_user_id", ORG_ADMIN_1)
@@ -169,23 +178,18 @@ class AuditLogIntegrationTest {
 			""");
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/auth/login")
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
+	private String login(String email, String password) {
+		return switch (email) {
+			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
+			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
+		};
+	}
 
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+	private String issueToken(UUID userId, UUID organizationId, String email, UserRole... roles) {
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(userId, organizationId, email, java.util.Set.of(roles)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private String bearer(String token) {

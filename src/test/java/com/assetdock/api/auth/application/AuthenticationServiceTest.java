@@ -81,6 +81,7 @@ class AuthenticationServiceTest {
 			passwordEncoder,
 			jwtTokenService,
 			auditLogService,
+			new AuthHardeningProperties(3),
 			clock
 		);
 	}
@@ -102,11 +103,43 @@ class AuthenticationServiceTest {
 	void shouldRejectInvalidCredentials() {
 		User activeUser = user(UserStatus.ACTIVE);
 		when(userRepository.findByEmail("user@assetdock.dev")).thenReturn(java.util.Optional.of(activeUser));
+		when(userRepository.incrementFailedLoginAttempts(activeUser.id(), NOW)).thenReturn(user(UserStatus.ACTIVE, 1));
 
 		assertThatThrownBy(() -> authenticationService.login(new LoginCommand("user@assetdock.dev", "wrong-password")))
 			.isInstanceOf(InvalidCredentialsException.class);
 
 		verify(userRepository, never()).updateLastLoginAt(any(), any());
+	}
+
+	@Test
+	void shouldAutomaticallyLockUserAfterConfiguredFailedLoginThreshold() {
+		User activeUser = user(UserStatus.ACTIVE, 2);
+		User lockedUser = user(UserStatus.LOCKED, 3);
+		when(userRepository.findByEmail("user@assetdock.dev")).thenReturn(java.util.Optional.of(activeUser));
+		when(userRepository.incrementFailedLoginAttempts(activeUser.id(), NOW)).thenReturn(user(UserStatus.ACTIVE, 3));
+		when(userRepository.updateStatus(activeUser.id(), UserStatus.LOCKED, NOW)).thenReturn(lockedUser);
+
+		assertThatThrownBy(() -> authenticationService.login(new LoginCommand("user@assetdock.dev", "wrong-password")))
+			.isInstanceOf(InvalidCredentialsException.class);
+
+		verify(userRepository).incrementFailedLoginAttempts(activeUser.id(), NOW);
+		verify(userRepository).updateStatus(activeUser.id(), UserStatus.LOCKED, NOW);
+		verify(userRepository, never()).updateLastLoginAt(any(), any());
+	}
+
+	@Test
+	void shouldResetFailedLoginAttemptsAfterSuccessfulAuthentication() {
+		User activeUser = user(UserStatus.ACTIVE, 2);
+		User resetUser = user(UserStatus.ACTIVE, 0);
+		when(userRepository.findByEmail("user@assetdock.dev")).thenReturn(java.util.Optional.of(activeUser));
+		when(userRepository.resetFailedLoginAttempts(activeUser.id(), NOW)).thenReturn(resetUser);
+
+		LoginResult result = authenticationService.login(new LoginCommand("user@assetdock.dev", RAW_PASSWORD));
+
+		assertThat(result.accessToken()).isNotBlank();
+		assertThat(result.principal()).isEqualTo(AuthenticatedUserPrincipal.from(resetUser));
+		verify(userRepository).resetFailedLoginAttempts(activeUser.id(), NOW);
+		verify(userRepository).updateLastLoginAt(activeUser.id(), NOW);
 	}
 
 	@Test
@@ -132,6 +165,10 @@ class AuthenticationServiceTest {
 	}
 
 	private User user(UserStatus status) {
+		return user(status, 0);
+	}
+
+	private User user(UserStatus status, int failedLoginAttempts) {
 		return new User(
 			UUID.fromString("11111111-1111-1111-1111-111111111111"),
 			UUID.fromString("22222222-2222-2222-2222-222222222222"),
@@ -140,7 +177,8 @@ class AuthenticationServiceTest {
 			passwordEncoder.encode(RAW_PASSWORD),
 			status,
 			Set.of(UserRole.ORG_ADMIN, UserRole.AUDITOR),
-			null,
+			failedLoginAttempts,
+			NOW.minusSeconds(7200),
 			NOW.minusSeconds(3600),
 			NOW.minusSeconds(3600)
 		);

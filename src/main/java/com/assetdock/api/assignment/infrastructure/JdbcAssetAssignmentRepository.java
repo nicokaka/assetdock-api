@@ -2,6 +2,7 @@ package com.assetdock.api.assignment.infrastructure;
 
 import com.assetdock.api.assignment.domain.AssetAssignment;
 import com.assetdock.api.assignment.domain.AssetAssignmentRepository;
+import com.assetdock.api.common.infrastructure.JdbcColumnReaders;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -53,11 +54,11 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 			.param("assetId", assignment.assetId())
 			.param("userId", assignment.userId())
 			.param("locationId", assignment.locationId())
-			.param("assignedAt", assignment.assignedAt())
-			.param("unassignedAt", assignment.unassignedAt())
+			.param("assignedAt", JdbcColumnReaders.toOffsetDateTime(assignment.assignedAt()))
+			.param("unassignedAt", JdbcColumnReaders.toOffsetDateTime(assignment.unassignedAt()))
 			.param("assignedBy", assignment.assignedBy())
 			.param("notes", assignment.notes())
-			.param("createdAt", assignment.createdAt())
+			.param("createdAt", JdbcColumnReaders.toOffsetDateTime(assignment.createdAt()))
 			.update();
 
 		return assignment;
@@ -79,14 +80,16 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 	}
 
 	@Override
-	public List<AssetAssignment> findAllByAssetIdAndOrganizationId(UUID assetId, UUID organizationId) {
+	public List<AssetAssignment> findAllByAssetIdAndOrganizationId(UUID assetId, UUID organizationId, int limit) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE asset_id = :assetId
 			  AND organization_id = :organizationId
 			ORDER BY assigned_at DESC, created_at DESC
+			LIMIT :limit
 			""")
 			.param("assetId", assetId)
 			.param("organizationId", organizationId)
+			.param("limit", limit)
 			.query(this::mapAssignment)
 			.list();
 	}
@@ -100,7 +103,7 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 			  AND organization_id = :organizationId
 			  AND unassigned_at IS NULL
 			""")
-			.param("unassignedAt", unassignedAt)
+			.param("unassignedAt", JdbcColumnReaders.toOffsetDateTime(unassignedAt))
 			.param("assignmentId", assignmentId)
 			.param("organizationId", organizationId)
 			.update();
@@ -129,11 +132,11 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 			resultSet.getObject("asset_id", UUID.class),
 			resultSet.getObject("user_id", UUID.class),
 			resultSet.getObject("location_id", UUID.class),
-			resultSet.getObject("assigned_at", Instant.class),
-			resultSet.getObject("unassigned_at", Instant.class),
+			JdbcColumnReaders.getInstant(resultSet, "assigned_at"),
+			JdbcColumnReaders.getInstant(resultSet, "unassigned_at"),
 			resultSet.getObject("assigned_by", UUID.class),
 			resultSet.getString("notes"),
-			resultSet.getObject("created_at", Instant.class)
+			JdbcColumnReaders.getInstant(resultSet, "created_at")
 		);
 	}
 }

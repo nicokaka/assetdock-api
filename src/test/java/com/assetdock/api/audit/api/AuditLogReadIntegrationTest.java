@@ -1,5 +1,8 @@
 package com.assetdock.api.audit.api;
 
+import com.assetdock.api.auth.infrastructure.JwtTokenService;
+import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.user.domain.UserRole;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -18,6 +21,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,6 +40,7 @@ class AuditLogReadIntegrationTest {
 	private static final UUID ORG_ADMIN_1 = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 	private static final UUID AUDITOR_1 = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 	private static final UUID VIEWER_1 = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc");
+	private static final UUID ASSET_MANAGER_1 = UUID.fromString("abababab-abab-abab-abab-abababababab");
 	private static final UUID USER_2 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
 	private static final UUID AUDIT_LOG_1 = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 	private static final UUID AUDIT_LOG_2 = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
@@ -56,6 +61,9 @@ class AuditLogReadIntegrationTest {
 	@Autowired
 	private PasswordEncoder passwordEncoder;
 
+	@Autowired
+	private JwtTokenService jwtTokenService;
+
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -72,6 +80,7 @@ class AuditLogReadIntegrationTest {
 		insertUser(ORG_ADMIN_1, ORG_1, "orgadmin1@assetdock.dev", "ORG_ADMIN");
 		insertUser(AUDITOR_1, ORG_1, "auditor1@assetdock.dev", "AUDITOR");
 		insertUser(VIEWER_1, ORG_1, "viewer1@assetdock.dev", "VIEWER");
+		insertUser(ASSET_MANAGER_1, ORG_1, "manager1@assetdock.dev", "ASSET_MANAGER");
 		insertUser(USER_2, ORG_2, "user2@assetdock.dev", "ORG_ADMIN");
 
 		insertAuditLog(AUDIT_LOG_1, ORG_1, ORG_ADMIN_1, "LOGIN_SUCCESS", "2026-03-01T00:00:00Z");
@@ -108,6 +117,15 @@ class AuditLogReadIntegrationTest {
 	@Test
 	void viewerCannotReadAuditLogs() throws Exception {
 		String token = login("viewer1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/audit-logs")
+				.header(AUTHORIZATION, bearer(token)))
+			.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void assetManagerCannotReadAuditLogs() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(get("/audit-logs")
 				.header(AUTHORIZATION, bearer(token)))
@@ -154,23 +172,46 @@ class AuditLogReadIntegrationTest {
 			.andExpect(jsonPath("$.items[0].eventType").value("USER_CREATED"));
 	}
 
-	private String login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/v1/auth/login")
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "email": "%s",
-					  "password": "%s"
-					}
-					""".formatted(email, password)))
-			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString();
+	@Test
+	void auditLogQueryRejectsOversizedPageSize() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 
-		int start = response.indexOf("\"accessToken\":\"") + 15;
-		int end = response.indexOf('"', start);
-		return response.substring(start, end);
+		mockMvc.perform(get("/audit-logs")
+				.header(AUTHORIZATION, bearer(token))
+				.param("size", "101"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:invalid-audit-log-query"))
+			.andExpect(jsonPath("$.detail").value("size must be between 1 and 100."));
+	}
+
+	@Test
+	void auditLogQueryRejectsExcessivelyLargePageOffset() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(get("/audit-logs")
+				.header(AUTHORIZATION, bearer(token))
+				.param("page", "30000000")
+				.param("size", "100"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:invalid-audit-log-query"))
+			.andExpect(jsonPath("$.detail").value("page is too large."));
+	}
+
+	private String login(String email, String password) {
+		return switch (email) {
+			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
+			case "auditor1@assetdock.dev" -> issueToken(AUDITOR_1, ORG_1, email, UserRole.AUDITOR);
+			case "viewer1@assetdock.dev" -> issueToken(VIEWER_1, ORG_1, email, UserRole.VIEWER);
+			case "manager1@assetdock.dev" -> issueToken(ASSET_MANAGER_1, ORG_1, email, UserRole.ASSET_MANAGER);
+			default -> throw new IllegalArgumentException("Unsupported test user email: " + email);
+		};
+	}
+
+	private String issueToken(UUID userId, UUID organizationId, String email, UserRole... roles) {
+		return jwtTokenService.issue(
+			new AuthenticatedUserPrincipal(userId, organizationId, email, java.util.Set.of(roles)),
+			java.time.Instant.now()
+		).value();
 	}
 
 	private String bearer(String token) {
