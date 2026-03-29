@@ -41,7 +41,11 @@ public class AuthenticationService {
 		this.clock = clock;
 	}
 
-	@Transactional
+	@Transactional(noRollbackFor = {
+		InvalidCredentialsException.class,
+		InactiveUserAuthenticationException.class,
+		LockedUserAuthenticationException.class
+	})
 	public LoginResult login(LoginCommand command) {
 		String normalizedEmail = normalizeEmail(command.email());
 		User user = userRepository.findByEmail(normalizedEmail)

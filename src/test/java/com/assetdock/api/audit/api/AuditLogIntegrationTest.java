@@ -162,7 +162,7 @@ class AuditLogIntegrationTest {
 
 		Map<String, Object> event = latestAuditEvent();
 		org.assertj.core.api.Assertions.assertThat(event)
-			.containsEntry("event_type", "USER_DISABLED")
+			.containsEntry("event_type", "USER_LOCKED")
 			.containsEntry("outcome", "SUCCESS")
 			.containsEntry("organization_id", ORG_1)
 			.containsEntry("actor_user_id", ORG_ADMIN_1)
