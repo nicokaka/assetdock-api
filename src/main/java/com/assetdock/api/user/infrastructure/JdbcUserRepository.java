@@ -133,7 +133,7 @@ public class JdbcUserRepository implements UserRepository {
 			WHERE id = :userId
 			""")
 			.param("status", status.name())
-			.param("updatedAt", updatedAt)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.param("userId", userId)
 			.update();
 
@@ -147,7 +147,7 @@ public class JdbcUserRepository implements UserRepository {
 			SET updated_at = :updatedAt
 			WHERE id = :userId
 			""")
-			.param("updatedAt", updatedAt)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.param("userId", userId)
 			.update();
 
@@ -164,8 +164,8 @@ public class JdbcUserRepository implements UserRepository {
 			""")
 			.param("userId", userId)
 			.param("role", role.name())
-			.param("createdAt", updatedAt)
-			.update());
+				.param("createdAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+				.update());
 
 		return findById(userId).orElseThrow();
 	}
@@ -178,7 +178,7 @@ public class JdbcUserRepository implements UserRepository {
 			    updated_at = :updatedAt
 			WHERE id = :userId
 			""")
-			.param("updatedAt", updatedAt)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.param("userId", userId)
 			.update();
 
@@ -193,7 +193,7 @@ public class JdbcUserRepository implements UserRepository {
 			    updated_at = :updatedAt
 			WHERE id = :userId
 			""")
-			.param("updatedAt", updatedAt)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.param("userId", userId)
 			.update();
 
@@ -242,8 +242,8 @@ public class JdbcUserRepository implements UserRepository {
 			    updated_at = :updatedAt
 			WHERE id = :userId
 			""")
-			.param("lastLoginAt", lastLoginAt)
-			.param("updatedAt", lastLoginAt)
+			.param("lastLoginAt", JdbcColumnReaders.toOffsetDateTime(lastLoginAt))
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(lastLoginAt))
 			.param("userId", userId)
 			.update();
 	}
