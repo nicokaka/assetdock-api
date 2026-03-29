@@ -13,9 +13,9 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 A production-grade backend API for managing hardware and software assets across organizations.  
-Built with **tenant isolation**, **role-based access control**, **immutable audit trails**, and a focus on **data integrity** — the foundations that matter in any security-conscious environment.
+Built as a **backend/security portfolio project** around **tenant isolation**, **role-based access control**, **immutable audit trails**, and **abuse-resistant API design**.
 
-[Architecture](#architecture) · [Security Model](#security--multi-tenancy) · [Security Assurance Docs](#security-assurance-docs) · [API Reference](#api-reference) · [Getting Started](#getting-started)
+[Why It Matters](#why-it-matters) · [Architecture](#architecture) · [Security Model](#security--multi-tenancy) · [Security Assurance Docs](#security-assurance-docs) · [Getting Started](#getting-started)
 
 </div>
 
@@ -30,6 +30,16 @@ Organizations need a reliable, auditable system to track **who has what, when it
 - 📋 **Immutable audit logging** — critical auth, user management, assignment, import, and lifecycle actions are recorded with actor, timestamp, and tenant context.
 - 🚦 **Abuse controls** — failed-login lockout, endpoint throttling, bounded queries, and validated CSV imports harden the public API surface.
 - 📦 **Bulk CSV import** — upload asset inventories with per-row validation, size/line limits, and partial-success semantics.
+
+## Why It Matters
+
+AssetDock is designed to demonstrate the parts of backend engineering that matter in security-sensitive systems:
+
+- secure-by-default API design rather than happy-path CRUD only
+- explicit tenant and role boundaries across the application layer
+- auditable administrative and authentication flows
+- realistic abuse handling for login, imports, and large reads
+- production-minded testing with PostgreSQL-backed integration coverage
 
 ---
 
@@ -92,29 +102,39 @@ Client ──► GET /assets (Authorization: Bearer <token>)
        ◄── Tenant-scoped response
 ```
 
+## Security Highlights
+
+- tenant-aware authorization enforced in service-layer access control
+- shared-schema isolation with `organization_id` on scoped entities
+- persistent audit trail for auth, user management, lifecycle, assignment, and import actions
+- account lockout and endpoint throttling for abuse resistance
+- bounded imports and bounded reads to reduce operational abuse surface
+- public docs disabled by default and public error responses sanitized
+
 ## Security Assurance Docs
 
 - [Threat Model](docs/security/threat-model.md)
 - [Trust Boundaries](docs/security/trust-boundaries.md)
 - [Abuse Cases](docs/security/abuse-cases.md)
 - [Security Decisions](docs/security/security-decisions.md)
+- [Changelog](CHANGELOG.md)
 
 ---
 
-## API Reference
+## Implemented Modules
 
 All business endpoints are tenant-aware. The authenticated user's `organization_id` is automatically applied.
 
-| Group | Endpoints | Description |
-|---|---|---|
-| **Auth** | `POST /api/v1/auth/login` | JWT authentication |
-| **Organizations** | `/organizations/*` | Tenant-scoped organization read |
-| **Users** | `/users/*` | User lifecycle, status, and role management |
-| **Catalog** | `/categories`, `/manufacturers`, `/locations` | Asset metadata management |
-| **Assets** | `/assets/*` | Asset lifecycle management |
-| **Assignments** | `/assets/{id}/assignments`, `/assets/{id}/unassign` | Assign/unassign assets with history tracking |
-| **Import** | `/imports/assets/*` | CSV bulk import with job tracking |
-| **Audit Logs** | `/audit-logs` | Paginated, filterable audit trail |
+| Module | Scope |
+|---|---|
+| **Auth** | JWT login, failed-login tracking, lockout, login throttling |
+| **Organization** | Tenant-scoped organization read |
+| **User** | User lifecycle, role updates, guarded status changes |
+| **Catalog** | Categories, manufacturers, and locations with lifecycle controls |
+| **Asset** | Asset lifecycle management with archive protections |
+| **Assignment** | Assignment/unassignment flows with integrity validation |
+| **Importer** | CSV bulk import with bounded synchronous processing |
+| **Audit** | Persisted and queryable security/audit events |
 
 > 📖 **Interactive docs** are enabled in `local` and `test` profiles, or when `PUBLIC_DOCS_ENABLED=true`.
 

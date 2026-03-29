@@ -13,9 +13,9 @@
 ![License](https://img.shields.io/badge/Licen%C3%A7a-MIT-green)
 
 Uma API backend de nível profissional para gerenciamento de ativos de hardware e software entre organizações.  
-Construída com **isolamento de tenants**, **controle de acesso baseado em papéis (RBAC)**, **trilhas de auditoria imutáveis** e foco em **integridade de dados** — os pilares que importam em qualquer ambiente consciente de segurança.
+Construída como **projeto de portfólio backend/security** em torno de **isolamento de tenants**, **controle de acesso baseado em papéis (RBAC)**, **trilhas de auditoria imutáveis** e **design de API resistente a abuso**.
 
-[Arquitetura](#arquitetura) · [Modelo de Segurança](#segurança--multi-tenancy) · [Docs de Security Assurance](#docs-de-security-assurance) · [Referência da API](#referência-da-api) · [Como Começar](#como-começar)
+[Por que ele importa](#por-que-ele-importa) · [Arquitetura](#arquitetura) · [Modelo de Segurança](#segurança--multi-tenancy) · [Docs de Security Assurance](#docs-de-security-assurance) · [Como Começar](#como-começar)
 
 </div>
 
@@ -30,6 +30,16 @@ Organizações precisam de um sistema confiável e auditável para rastrear **qu
 - 📋 **Logs de auditoria imutáveis** — ações críticas de auth, gestão de usuários, atribuição, importação e ciclo de vida são registradas com ator, timestamp e contexto do tenant.
 - 🚦 **Controles de abuso** — lockout por falhas de login, throttling de endpoints, queries limitadas e import CSV validado endurecem a superfície pública da API.
 - 📦 **Importação em massa via CSV** — upload de inventários de ativos com validação por linha, limites de tamanho e semântica de sucesso parcial.
+
+## Por que ele importa
+
+O AssetDock foi pensado para demonstrar partes de engenharia backend que realmente importam em sistemas sensíveis à segurança:
+
+- design de API seguro por padrão, e não apenas CRUD de happy path
+- fronteiras explícitas de tenant e de papéis na camada de aplicação
+- fluxos auditáveis de autenticação e administração
+- tratamento realista de abuso em login, importações e leituras grandes
+- testes de integração com PostgreSQL real e foco em comportamento operacional
 
 ---
 
@@ -92,29 +102,39 @@ Cliente ──► GET /assets (Authorization: Bearer <token>)
         ◄── Resposta com escopo de tenant
 ```
 
+## Destaques de Segurança
+
+- autorização tenant-aware aplicada na camada de serviço
+- isolamento em schema compartilhado com `organization_id` nas entidades com escopo
+- trilha de auditoria persistida para auth, gestão de usuários, ciclo de vida, atribuições e importações
+- lockout de conta e throttling de endpoint para resistência a abuso
+- importações e leituras limitadas para reduzir superfície operacional de abuso
+- documentação pública desabilitada por padrão e respostas públicas sanitizadas
+
 ## Docs de Security Assurance
 
 - [Threat Model](docs/security/threat-model.md)
 - [Trust Boundaries](docs/security/trust-boundaries.md)
 - [Abuse Cases](docs/security/abuse-cases.md)
 - [Security Decisions](docs/security/security-decisions.md)
+- [Changelog](CHANGELOG.md)
 
 ---
 
-## Referência da API
+## Módulos Implementados
 
 Todos os endpoints de negócio são tenant-aware. O `organization_id` do usuário autenticado é aplicado automaticamente.
 
-| Grupo | Endpoints | Descrição |
-|---|---|---|
-| **Auth** | `POST /api/v1/auth/login` | Autenticação JWT |
-| **Organizações** | `/organizations/*` | Leitura tenant-scoped da organização |
-| **Usuários** | `/users/*` | Ciclo de vida do usuário, status e papéis |
-| **Catálogo** | `/categories`, `/manufacturers`, `/locations` | Gerenciamento de metadados de ativos |
-| **Ativos** | `/assets/*` | Gerenciamento do ciclo de vida dos ativos |
-| **Atribuições** | `/assets/{id}/assignments`, `/assets/{id}/unassign` | Atribuir/desatribuir ativos com histórico |
-| **Importação** | `/imports/assets/*` | Importação em massa via CSV com rastreamento de jobs |
-| **Logs de Auditoria** | `/audit-logs` | Trilha de auditoria paginada e filtrável |
+| Módulo | Escopo |
+|---|---|
+| **Auth** | Login JWT, rastreamento de falhas, lockout e throttling de login |
+| **Organização** | Leitura tenant-scoped da organização |
+| **Usuário** | Ciclo de vida do usuário, atualização de papéis e mudanças protegidas de status |
+| **Catálogo** | Categories, manufacturers e locations com controles de ciclo de vida |
+| **Ativos** | Gerenciamento de ciclo de vida de ativos com proteção de archive |
+| **Atribuições** | Fluxos de atribuição/desatribuição com validações de integridade |
+| **Importação** | Importação CSV com processamento síncrono e limitado |
+| **Auditoria** | Eventos persistidos e consultáveis de segurança/auditoria |
 
 > 📖 **Documentação interativa** habilitada nos perfis `local` e `test`, ou quando `PUBLIC_DOCS_ENABLED=true`.
 
