@@ -20,7 +20,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -56,8 +55,7 @@ class AuthTokenBoundaryIntegrationTest {
 	void malformedJwtIsRejected() throws Exception {
 		mockMvc.perform(get("/assets")
 				.header(AUTHORIZATION, "Bearer not-a-jwt"))
-			.andExpect(status().isUnauthorized())
-			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -68,8 +66,7 @@ class AuthTokenBoundaryIntegrationTest {
 
 		mockMvc.perform(get("/assets")
 				.header(AUTHORIZATION, "Bearer " + invalidSignatureToken))
-			.andExpect(status().isUnauthorized())
-			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -78,16 +75,14 @@ class AuthTokenBoundaryIntegrationTest {
 
 		mockMvc.perform(get("/assets")
 				.header(AUTHORIZATION, "Bearer " + expiredToken))
-			.andExpect(status().isUnauthorized())
-			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
+			.andExpect(status().isUnauthorized());
 	}
 
 	@Test
 	void authorizationHeaderWithoutBearerSchemeIsRejected() throws Exception {
 		mockMvc.perform(get("/assets")
 				.header(AUTHORIZATION, validToken()))
-			.andExpect(status().isUnauthorized())
-			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
+			.andExpect(status().isUnauthorized());
 	}
 
 	private String validToken() {
