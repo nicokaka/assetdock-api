@@ -2,6 +2,7 @@ package com.assetdock.api.security.config;
 
 import com.assetdock.api.security.auth.JwtToAuthenticatedUserConverter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -13,6 +14,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -20,9 +24,14 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
 	private final boolean publicDocsEnabled;
+	private final String allowedOrigins;
 
-	public SecurityConfig(@Value("${app.surface.public-docs-enabled:false}") boolean publicDocsEnabled) {
+	public SecurityConfig(
+		@Value("${app.surface.public-docs-enabled:false}") boolean publicDocsEnabled,
+		@Value("${app.surface.allowed-origins:}") String allowedOrigins
+	) {
 		this.publicDocsEnabled = publicDocsEnabled;
+		this.allowedOrigins = allowedOrigins;
 	}
 
 	@Bean
@@ -33,7 +42,7 @@ public class SecurityConfig {
 	) throws Exception {
 		http
 			.csrf(AbstractHttpConfigurer::disable)
-			.cors(AbstractHttpConfigurer::disable)
+			.cors(withDefaults())
 			.formLogin(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.logout(AbstractHttpConfigurer::disable)
@@ -71,5 +80,26 @@ public class SecurityConfig {
 	@Bean
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
+	}
+
+	@Bean
+	CorsConfigurationSource corsConfigurationSource() {
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		List<String> origins = Arrays.stream(allowedOrigins.split(","))
+			.map(String::trim)
+			.filter(origin -> !origin.isBlank())
+			.toList();
+		if (origins.isEmpty()) {
+			return source;
+		}
+
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOrigins(origins);
+		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+		configuration.setAllowCredentials(false);
+		configuration.setMaxAge(3600L);
+		source.registerCorsConfiguration("/**", configuration);
+		return source;
 	}
 }
