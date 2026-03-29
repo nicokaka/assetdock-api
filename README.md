@@ -10,7 +10,7 @@
 ![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
 ![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
-![License](https://img.shields.io/badge/License-Private-lightgrey)
+![License](https://img.shields.io/badge/License-MIT-green)
 
 A production-grade backend API for managing hardware and software assets across organizations.  
 Built with **tenant isolation**, **role-based access control**, **immutable audit trails**, and a focus on **data integrity** — the foundations that matter in any security-conscious environment.
@@ -27,7 +27,8 @@ Organizations need a reliable, auditable system to track **who has what, when it
 
 - 🏢 **Multi-tenant isolation** — each organization's data is logically separated at the query level; cross-tenant access is denied by design.
 - 🛡️ **Role-based authorization** — five distinct roles enforce least-privilege access across every endpoint.
-- 📋 **Immutable audit logging** — every critical action (create, update, delete, assign, import) is recorded with actor, timestamp, and tenant context.
+- 📋 **Immutable audit logging** — critical auth, user management, assignment, import, and lifecycle actions are recorded with actor, timestamp, and tenant context.
+- 🚦 **Abuse controls** — failed-login lockout, endpoint throttling, bounded queries, and validated CSV imports harden the public API surface.
 - 📦 **Bulk CSV import** — upload asset inventories with per-row validation, size/line limits, and partial-success semantics.
 
 ---
@@ -45,7 +46,7 @@ Organizations need a reliable, auditable system to track **who has what, when it
 │   User   │   Org    │  Audit   │  Security  │  Common   │
 │  Module  │  Module  │  Module  │  (shared)  │  (shared) │
 ├──────────┴──────────┴──────────┴────────────┴───────────┤
-│           Spring Security + JWT (RSA)                   │
+│          Spring Security + JWT (HMAC / HS256)           │
 ├─────────────────────────────────────────────────────────┤
 │           PostgreSQL 17 + Flyway Migrations             │
 └─────────────────────────────────────────────────────────┘
@@ -100,21 +101,21 @@ All business endpoints are tenant-aware. The authenticated user's `organization_
 | Group | Endpoints | Description |
 |---|---|---|
 | **Auth** | `POST /api/v1/auth/login` | JWT authentication |
-| **Organizations** | `/organizations/*` | Tenant management |
-| **Users** | `/users/*` | User lifecycle (invite, update, deactivate) |
+| **Organizations** | `/organizations/*` | Tenant-scoped organization read |
+| **Users** | `/users/*` | User lifecycle, status, and role management |
 | **Catalog** | `/categories`, `/manufacturers`, `/locations` | Asset metadata management |
-| **Assets** | `/assets/*` | Full asset CRUD |
+| **Assets** | `/assets/*` | Asset lifecycle management |
 | **Assignments** | `/assets/{id}/assignments`, `/assets/{id}/unassign` | Assign/unassign assets with history tracking |
 | **Import** | `/imports/assets/*` | CSV bulk import with job tracking |
 | **Audit Logs** | `/audit-logs` | Paginated, filterable audit trail |
 
-> 📖 **Interactive docs** available at `/swagger-ui.html` when the server is running (powered by SpringDoc OpenAPI).
+> 📖 **Interactive docs** are enabled in `local` and `test` profiles, or when `PUBLIC_DOCS_ENABLED=true`.
 
 ---
 
 ## Testing Strategy
 
-The project maintains **15 test classes** covering both unit and integration layers, powered by **JUnit 5** and **Testcontainers** (real PostgreSQL — no mocks for data-layer tests).
+The project includes unit and integration coverage powered by **JUnit 5** and **Testcontainers** (real PostgreSQL for integration flows).
 
 | Test Layer | What's Covered |
 |---|---|
@@ -160,7 +161,7 @@ CI runs automatically on every push and pull request via **GitHub Actions**.
 ```bash
 git clone https://github.com/nicokaka/assetdock-api.git
 cd assetdock-api
-cp .env.example .env   # edit with your database credentials
+cp .env.example .env   # configure database settings and JWT_SECRET
 ```
 
 ### 2. Start the database
@@ -223,9 +224,9 @@ assetdock-api/
 │   ├── security/       # Shared security filters & config
 │   ├── common/         # Shared utilities & error handling
 │   └── config/         # Application configuration
-├── src/test/           # 15 test classes (unit + integration)
+├── src/test/           # Unit and integration tests
 ├── docs/adr/           # Architecture Decision Records
-├── .github/workflows/  # CI pipeline
+├── .github/workflows/  # CI and security workflows
 ├── docker-compose.yml  # Local PostgreSQL
 └── build.gradle        # Gradle build config
 ```
