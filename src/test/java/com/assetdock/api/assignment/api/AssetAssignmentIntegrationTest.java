@@ -560,7 +560,7 @@ class AssetAssignmentIntegrationTest {
 			locationId,
 			currentAssignedUserId,
 			status,
-			archivedAt
+			archivedAt == null ? null : archivedAt.atOffset(java.time.ZoneOffset.UTC)
 		);
 	}
 
