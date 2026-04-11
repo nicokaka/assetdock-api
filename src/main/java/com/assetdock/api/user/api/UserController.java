@@ -62,6 +62,22 @@ public class UserController {
 		return userManagementService.getUser(principal, id);
 	}
 
+	@PatchMapping("/{id}")
+	UserView updateProfile(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@Valid @RequestBody UpdateUserProfileRequest request
+	) {
+		return userManagementService.updateProfile(
+			principal,
+			id,
+			new com.assetdock.api.user.application.UpdateUserProfileCommand(
+				request.fullName(),
+				request.email()
+			)
+		);
+	}
+
 	@PatchMapping("/{id}/roles")
 	UserView updateRoles(
 		@PathVariable UUID id,

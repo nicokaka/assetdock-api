@@ -32,5 +32,7 @@ public interface UserRepository {
 
 	long countActiveUsersByRole(UserRole role);
 
+	User updateProfile(UUID userId, String fullName, String normalizedEmail, Instant updatedAt);
+
 	void updateLastLoginAt(UUID userId, Instant lastLoginAt);
 }
