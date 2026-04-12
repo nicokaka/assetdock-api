@@ -55,7 +55,7 @@ class WebSessionCsrfIntegrationTest extends AbstractIntegrationTest {
 			ORGANIZATION_ID,
 			"AST-1",
 			"Asset One",
-			"ACTIVE"
+			"IN_STOCK"
 		);
 	}
 
