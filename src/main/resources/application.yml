@@ -2,7 +2,7 @@ spring:
   application:
     name: assetdock-api
   profiles:
-    default: local
+    default: ${SPRING_PROFILES_ACTIVE:local}
   jackson:
     default-property-inclusion: non_null
     deserialization:
