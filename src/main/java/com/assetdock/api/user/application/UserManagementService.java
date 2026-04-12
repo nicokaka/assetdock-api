@@ -135,6 +135,49 @@ public class UserManagementService {
 	}
 
 	@Transactional
+	public UserView updateProfile(AuthenticatedUserPrincipal actor, UUID userId, UpdateUserProfileCommand command) {
+		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
+		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
+
+		String normalizedEmail = normalizeEmail(command.email());
+		boolean emailChanged = !normalizedEmail.equals(user.email());
+
+		if (emailChanged && userRepository.existsByEmail(normalizedEmail)) {
+			throw new EmailAlreadyInUseException();
+		}
+
+		String normalizedFullName = command.fullName().trim();
+		boolean noChange = normalizedFullName.equals(user.fullName()) && !emailChanged;
+
+		if (noChange) {
+			return toView(user, actor);
+		}
+
+		Instant updatedAt = Instant.now(clock);
+		User updatedUser = userRepository.updateProfile(userId, normalizedFullName, normalizedEmail, updatedAt);
+
+		LOGGER.info(
+			"user_management action=update_profile actor_id={} target_user_id={}",
+			actor.userId(),
+			userId
+		);
+		auditLogService.record(new AuditLogCommand(
+			updatedUser.organizationId(),
+			actor.userId(),
+			AuditEventType.USER_UPDATED,
+			"user",
+			updatedUser.id(),
+			"SUCCESS",
+			java.util.Map.of(
+				"fullName", updatedUser.fullName(),
+				"emailChanged", String.valueOf(emailChanged)
+			)
+		));
+
+		return toView(updatedUser, actor);
+	}
+
+	@Transactional
 	public UserView updateRoles(AuthenticatedUserPrincipal actor, UUID userId, Set<UserRole> roles) {
 		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
 		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());

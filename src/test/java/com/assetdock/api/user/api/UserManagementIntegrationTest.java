@@ -360,6 +360,56 @@ class UserManagementIntegrationTest extends AbstractIntegrationTest {
 			.andExpect(jsonPath("$", hasSize(100)));
 	}
 
+	@Test
+	void orgAdminShouldUpdateProfileOfUserInOwnOrganization() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "fullName": "Updated Name",
+					  "email": "updated.target1@assetdock.dev"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.fullName").value("Updated Name"))
+			.andExpect(jsonPath("$.email").value("updated.target1@assetdock.dev"));
+
+		String eventType = jdbcTemplate.queryForObject(
+			"""
+				SELECT event_type
+				FROM audit_logs
+				WHERE resource_id = ?
+				ORDER BY occurred_at DESC
+				LIMIT 1
+				""",
+			String.class,
+			TARGET_USER_1
+		);
+		org.assertj.core.api.Assertions.assertThat(eventType).isEqualTo("USER_UPDATED");
+	}
+
+	@Test
+	void shouldRejectProfileUpdateWhenEmailAlreadyInUse() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		// target1@assetdock.dev already belongs to TARGET_USER_1;
+		// trying to assign it to TARGET_USER_2 would normally be cross-tenant,
+		// so use an email that exists within the same org (AUDITOR_1).
+		mockMvc.perform(patch("/users/{id}", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "fullName": "Conflict Test",
+					  "email": "auditor1@assetdock.dev"
+					}
+					"""))
+			.andExpect(status().isConflict());
+	}
+
 	private String login(String email, String password) {
 		return switch (email) {
 			case "orgadmin1@assetdock.dev" -> issueToken(ORG_ADMIN_1, ORG_1, email, UserRole.ORG_ADMIN);
