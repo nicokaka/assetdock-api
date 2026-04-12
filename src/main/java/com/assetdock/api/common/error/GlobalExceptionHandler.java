@@ -412,8 +412,9 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<ProblemDetail> handleUnexpectedException(Exception exception, WebRequest request) throws Exception {
-		if (exception instanceof org.springframework.security.access.AccessDeniedException ||
-			exception instanceof org.springframework.security.core.AuthenticationException) {
+		if (exception instanceof org.springframework.web.ErrorResponse ||
+			exception instanceof jakarta.servlet.ServletException ||
+			exception.getClass().getName().startsWith("org.springframework.security.")) {
 			throw exception;
 		}
 
