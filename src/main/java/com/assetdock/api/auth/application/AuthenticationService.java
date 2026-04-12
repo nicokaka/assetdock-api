@@ -14,6 +14,7 @@ import java.util.Locale;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.assetdock.api.common.util.EmailNormalizer;
 
 @Service
 public class AuthenticationService {
@@ -70,7 +71,7 @@ public class AuthenticationService {
 	}
 
 	private AuthenticatedLogin authenticate(LoginCommand command, String authMode) {
-		String normalizedEmail = normalizeEmail(command.email());
+		String normalizedEmail = EmailNormalizer.normalize(command.email());
 		User user = userRepository.findByEmail(normalizedEmail)
 			.orElseThrow(() -> {
 				recordLoginFailure(null, null, null, normalizedEmail, "user_not_found");
@@ -161,9 +162,7 @@ public class AuthenticationService {
 		return details;
 	}
 
-	private String normalizeEmail(String email) {
-		return email.trim().toLowerCase(Locale.ROOT);
-	}
+
 
 	private void recordLoginFailure(
 		java.util.UUID organizationId,

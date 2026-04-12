@@ -20,18 +20,14 @@ public abstract class AbstractIntegrationTest {
 			.withDatabaseName("assetdock_test")
 			.withUsername("assetdock")
 			.withPassword("assetdock");
-		if (DockerClientFactory.instance().isDockerAvailable()) {
-			POSTGRES.start();
-		}
+		POSTGRES.start();
 	}
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
-		if (POSTGRES.isRunning()) {
-			registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-			registry.add("spring.datasource.username", POSTGRES::getUsername);
-			registry.add("spring.datasource.password", POSTGRES::getPassword);
-		}
+		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+		registry.add("spring.datasource.username", POSTGRES::getUsername);
+		registry.add("spring.datasource.password", POSTGRES::getPassword);
 		registry.add("security.jwt.secret", () -> "test-only-jwt-secret-key-with-32-bytes");
 	}
 }

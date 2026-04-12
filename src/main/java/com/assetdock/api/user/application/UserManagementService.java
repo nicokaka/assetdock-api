@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.assetdock.api.common.util.EmailNormalizer;
 
 @Service
 public class UserManagementService {
@@ -62,7 +63,7 @@ public class UserManagementService {
 			tenantAccessService.requireUserWriteAccess(actor, targetOrganizationId);
 		}
 
-		String normalizedEmail = normalizeEmail(command.email());
+		String normalizedEmail = EmailNormalizer.normalize(command.email());
 		if (userRepository.existsByEmail(normalizedEmail)) {
 			throw new EmailAlreadyInUseException();
 		}
@@ -120,10 +121,7 @@ public class UserManagementService {
 		List<User> users = userRepository.findAllByOrganizationId(actorOrganizationId, QueryLimits.DEFAULT_LIST_LIMIT);
 
 		return users.stream()
-			.map(user -> {
-				tenantAccessService.requireUserReadAccess(actor, user.organizationId());
-				return toView(user, actor);
-			})
+			.map(user -> toView(user, actor))
 			.toList();
 	}
 
@@ -139,7 +137,7 @@ public class UserManagementService {
 		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
 		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
 
-		String normalizedEmail = normalizeEmail(command.email());
+		String normalizedEmail = EmailNormalizer.normalize(command.email());
 		boolean emailChanged = !normalizedEmail.equals(user.email());
 
 		if (emailChanged && userRepository.existsByEmail(normalizedEmail)) {
@@ -389,7 +387,5 @@ public class UserManagementService {
 		return actor.organizationId();
 	}
 
-	private String normalizeEmail(String email) {
-		return email.trim().toLowerCase(Locale.ROOT);
-	}
+
 }

@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/categories")
+@RequestMapping("/api/v1/web/categories")
 public class CategoryController {
 
 	private final CategoryManagementService categoryManagementService;

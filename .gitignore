@@ -2,6 +2,9 @@ HELP.md
 .gradle
 build/
 .env
+*.log
+*.txt
+tmp/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/

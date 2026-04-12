@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Validated
 @RestController
-@RequestMapping("/assets")
+@RequestMapping("/api/v1/web/assets")
 public class AssetController {
 
 	private final AssetManagementService assetManagementService;

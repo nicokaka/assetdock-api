@@ -20,6 +20,8 @@ import com.assetdock.api.user.application.UserNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +40,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
 	private final ProblemDetailFactory problemDetailFactory;
 
@@ -120,18 +124,7 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
 	}
 
-	@ExceptionHandler(AccessDeniedException.class)
-	ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException exception, WebRequest request) {
-		ProblemDetail problemDetail = problemDetailFactory.create(
-			HttpStatus.FORBIDDEN,
-			"Access denied",
-			"You do not have permission to access this resource.",
-			"urn:assetdock:problem:access-denied",
-			extractPath(request)
-		);
 
-		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
-	}
 
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ProblemDetail> handleInvalidCredentials(
@@ -419,6 +412,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<ProblemDetail> handleUnexpectedException(Exception exception, WebRequest request) {
+		LOGGER.error("Unhandled exception at {}", extractPath(request), exception);
 		ProblemDetail problemDetail = problemDetailFactory.create(
 			HttpStatus.INTERNAL_SERVER_ERROR,
 			"Unexpected error",

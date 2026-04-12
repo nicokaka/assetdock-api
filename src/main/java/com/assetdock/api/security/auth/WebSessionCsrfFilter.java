@@ -8,21 +8,22 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Arrays;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import com.assetdock.api.security.config.SecurityProblemSupport;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class WebSessionCsrfFilter extends OncePerRequestFilter {
 
 	private final WebSessionCookieService webSessionCookieService;
-	private final com.assetdock.api.security.config.SecurityProblemSupport securityProblemSupport;
+	private final SecurityProblemSupport securityProblemSupport;
 
 	public WebSessionCsrfFilter(
 		WebSessionCookieService webSessionCookieService,
-		com.assetdock.api.security.config.SecurityProblemSupport securityProblemSupport
+		SecurityProblemSupport securityProblemSupport
 	) {
 		this.webSessionCookieService = webSessionCookieService;
 		this.securityProblemSupport = securityProblemSupport;
@@ -45,13 +46,13 @@ public class WebSessionCsrfFilter extends OncePerRequestFilter {
 			return;
 		}
 
-		String csrfCookie = cookieValue(request, webSessionCookieService.csrfCookieName());
+		String csrfCookie = webSessionCookieService.getCookieValue(request, webSessionCookieService.csrfCookieName());
 		String csrfHeader = request.getHeader("X-CSRF-Token");
 		if (csrfCookie == null
 			|| csrfHeader == null
 			|| !csrfCookie.equals(csrfHeader)
 			|| !csrfHeader.equals(webAuthentication.csrfToken())) {
-			securityProblemSupport.handle(request, response, new AccessDeniedException("Invalid CSRF token."));
+			securityProblemSupport.handle(request, response, new org.springframework.security.access.AccessDeniedException("Invalid CSRF token."));
 			return;
 		}
 
@@ -66,16 +67,5 @@ public class WebSessionCsrfFilter extends OncePerRequestFilter {
 			|| "DELETE".equalsIgnoreCase(method);
 	}
 
-	private String cookieValue(HttpServletRequest request, String cookieName) {
-		Cookie[] cookies = request.getCookies();
-		if (cookies == null || cookies.length == 0) {
-			return null;
-		}
 
-		return Arrays.stream(cookies)
-			.filter(cookie -> cookieName.equals(cookie.getName()))
-			.map(Cookie::getValue)
-			.findFirst()
-			.orElse(null);
-	}
 }

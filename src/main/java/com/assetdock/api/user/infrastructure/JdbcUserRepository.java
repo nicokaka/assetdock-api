@@ -10,8 +10,11 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -51,21 +54,20 @@ public class JdbcUserRepository implements UserRepository {
 
 	@Override
 	public List<User> findAll(int limit) {
-		return jdbcClient.sql(baseSelect() + """
+		List<UserSnapshot> snapshots = jdbcClient.sql(baseSelect() + """
 			ORDER BY full_name, email
 			LIMIT :limit
 			""")
 			.param("limit", limit)
 			.query(this::mapUserSnapshot)
-			.list()
-			.stream()
-			.map(this::toUser)
-			.toList();
+			.list();
+
+		return buildUsersWithRoles(snapshots);
 	}
 
 	@Override
 	public List<User> findAllByOrganizationId(UUID organizationId, int limit) {
-		return jdbcClient.sql(baseSelect() + """
+		List<UserSnapshot> snapshots = jdbcClient.sql(baseSelect() + """
 			WHERE organization_id = :organizationId
 			ORDER BY full_name, email
 			LIMIT :limit
@@ -73,10 +75,9 @@ public class JdbcUserRepository implements UserRepository {
 			.param("organizationId", organizationId)
 			.param("limit", limit)
 			.query(this::mapUserSnapshot)
-			.list()
-			.stream()
-			.map(this::toUser)
-			.toList();
+			.list();
+
+		return buildUsersWithRoles(snapshots);
 	}
 
 	@Override
@@ -280,6 +281,46 @@ public class JdbcUserRepository implements UserRepository {
 			snapshot.createdAt(),
 			snapshot.updatedAt()
 		);
+	}
+
+	private List<User> buildUsersWithRoles(List<UserSnapshot> snapshots) {
+		if (snapshots.isEmpty()) {
+			return List.of();
+		}
+
+		List<UUID> userIds = snapshots.stream().map(UserSnapshot::id).toList();
+		Map<UUID, Set<UserRole>> rolesByUserId = jdbcClient.sql("""
+			SELECT user_id, role
+			FROM user_roles
+			WHERE user_id IN (:userIds)
+			""")
+			.param("userIds", userIds)
+			.query((rs, rowNum) -> Map.entry(
+				rs.getObject("user_id", UUID.class),
+				UserRole.valueOf(rs.getString("role"))
+			))
+			.list()
+			.stream()
+			.collect(Collectors.groupingBy(
+				Map.Entry::getKey,
+				Collectors.mapping(Map.Entry::getValue, Collectors.toSet())
+			));
+
+		return snapshots.stream()
+			.map(snapshot -> new User(
+				snapshot.id(),
+				snapshot.organizationId(),
+				snapshot.email(),
+				snapshot.fullName(),
+				snapshot.passwordHash(),
+				snapshot.status(),
+				rolesByUserId.getOrDefault(snapshot.id(), Set.of()),
+				snapshot.failedLoginAttempts(),
+				snapshot.lastLoginAt(),
+				snapshot.createdAt(),
+				snapshot.updatedAt()
+			))
+			.toList();
 	}
 
 	private Set<UserRole> loadRoles(UUID userId) {

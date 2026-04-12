@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.assetdock.api.common.util.EmailNormalizer;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,7 +56,7 @@ public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 
 		validateProperties();
 
-		String normalizedEmail = normalizeEmail(properties.adminEmail());
+		String normalizedEmail = EmailNormalizer.normalize(properties.adminEmail());
 		Organization organization = organizationRepository.findBySlug(properties.organizationSlug())
 			.orElseGet(this::createOrganization);
 
@@ -119,9 +120,7 @@ public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 		}
 	}
 
-	private String normalizeEmail(String email) {
-		return email.trim().toLowerCase(Locale.ROOT);
-	}
+
 
 	private boolean isBlank(String value) {
 		return value == null || value.isBlank();

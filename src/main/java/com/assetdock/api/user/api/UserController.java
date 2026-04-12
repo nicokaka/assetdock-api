@@ -2,6 +2,7 @@ package com.assetdock.api.user.api;
 
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.application.CreateUserCommand;
+import com.assetdock.api.user.application.UpdateUserProfileCommand;
 import com.assetdock.api.user.application.UserManagementService;
 import com.assetdock.api.user.application.UserView;
 import java.util.List;
@@ -21,7 +22,7 @@ import jakarta.validation.Valid;
 
 @Validated
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/v1/web/users")
 public class UserController {
 
 	private final UserManagementService userManagementService;
@@ -71,7 +72,7 @@ public class UserController {
 		return userManagementService.updateProfile(
 			principal,
 			id,
-			new com.assetdock.api.user.application.UpdateUserProfileCommand(
+			new UpdateUserProfileCommand(
 				request.fullName(),
 				request.email()
 			)

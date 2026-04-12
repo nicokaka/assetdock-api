@@ -40,7 +40,7 @@ public class WebSessionAuthenticationFilter extends OncePerRequestFilter {
 			return;
 		}
 
-		String rawSessionId = cookieValue(request, webSessionCookieService.sessionCookieName());
+		String rawSessionId = webSessionCookieService.getCookieValue(request, webSessionCookieService.sessionCookieName());
 		Optional<WebAuthenticatedSession> authenticatedSession = webSessionService.resolve(rawSessionId);
 		if (authenticatedSession.isEmpty()) {
 			filterChain.doFilter(request, response);
@@ -59,16 +59,5 @@ public class WebSessionAuthenticationFilter extends OncePerRequestFilter {
 		return authorization != null && !authorization.isBlank();
 	}
 
-	private String cookieValue(HttpServletRequest request, String cookieName) {
-		Cookie[] cookies = request.getCookies();
-		if (cookies == null || cookies.length == 0) {
-			return null;
-		}
 
-		return Arrays.stream(cookies)
-			.filter(cookie -> cookieName.equals(cookie.getName()))
-			.map(Cookie::getValue)
-			.findFirst()
-			.orElse(null);
-	}
 }

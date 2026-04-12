@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/assets/{assetId}")
+@RequestMapping("/api/v1/web/assets/{assetId}")
 public class AssetAssignmentController {
 
 	private final AssetAssignmentManagementService assetAssignmentManagementService;

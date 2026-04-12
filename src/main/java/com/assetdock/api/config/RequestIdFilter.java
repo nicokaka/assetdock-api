@@ -27,11 +27,22 @@ public class RequestIdFilter extends OncePerRequestFilter {
 		String requestId = request.getHeader(REQUEST_ID_HEADER);
 		if (requestId == null || requestId.isBlank()) {
 			requestId = UUID.randomUUID().toString();
+		} else {
+			requestId = sanitize(requestId);
 		}
 
 		request.setAttribute(REQUEST_ID_ATTRIBUTE, requestId);
 		response.setHeader(REQUEST_ID_HEADER, requestId);
 
 		filterChain.doFilter(request, response);
+	}
+
+	private String sanitize(String value) {
+		String sanitized = value.replaceAll("[^a-zA-Z0-9-]", "");
+		if (sanitized.isBlank()) {
+			return UUID.randomUUID().toString();
+		}
+
+		return sanitized.length() > 64 ? sanitized.substring(0, 64) : sanitized;
 	}
 }

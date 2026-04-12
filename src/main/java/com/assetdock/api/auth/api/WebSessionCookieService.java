@@ -61,4 +61,16 @@ public class WebSessionCookieService {
 	private void addCookie(HttpServletResponse response, ResponseCookie cookie) {
 		response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 	}
+
+	public String getCookieValue(jakarta.servlet.http.HttpServletRequest request, String cookieName) {
+		if (request.getCookies() == null) {
+			return null;
+		}
+		for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+			if (cookieName.equals(cookie.getName())) {
+				return cookie.getValue();
+			}
+		}
+		return null;
+	}
 }

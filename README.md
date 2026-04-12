@@ -107,7 +107,7 @@ Client ──► GET /assets (Authorization: Bearer <token>)
 - tenant-aware authorization enforced in service-layer access control
 - shared-schema isolation with `organization_id` on scoped entities
 - persistent audit trail for auth, user management, lifecycle, assignment, and import actions
-- account lockout and endpoint throttling for abuse resistance
+- account lockout and endpoint throttling for abuse resistance *(Note: Rate limiting is currently in-memory and will reset on application restart. For horizontal scaling in production, consider replacing `EndpointRateLimiter` with a Redis-backed implementation)*
 - bounded imports and bounded reads to reduce operational abuse surface
 - public docs disabled by default and public error responses sanitized
 
