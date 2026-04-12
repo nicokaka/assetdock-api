@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@RequestMapping("/api/v1/web/imports/assets")
+@RequestMapping("/imports/assets")
 public class AssetCsvImportController {
 
 	private final AssetCsvImportService assetCsvImportService;

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/web/audit-logs")
+@RequestMapping({"/audit-logs", "/api/v1/audit-logs"})
 public class AuditLogController {
 
 	private final AuditLogQueryService auditLogQueryService;

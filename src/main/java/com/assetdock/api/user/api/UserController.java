@@ -22,7 +22,7 @@ import jakarta.validation.Valid;
 
 @Validated
 @RestController
-@RequestMapping("/api/v1/web/users")
+@RequestMapping("/users")
 public class UserController {
 
 	private final UserManagementService userManagementService;

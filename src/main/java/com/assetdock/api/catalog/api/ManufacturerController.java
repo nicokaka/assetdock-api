@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/web/manufacturers")
+@RequestMapping("/manufacturers")
 public class ManufacturerController {
 
 	private final ManufacturerManagementService manufacturerManagementService;
