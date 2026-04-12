@@ -24,7 +24,7 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 
 	private static final String LOGIN_PATH = "/api/v1/auth/login";
 	private static final String WEB_LOGIN_PATH = "/api/v1/web/auth/login";
-	private static final String IMPORT_PATH = "/api/v1/web/imports/assets/csv";
+	private static final String IMPORT_PATH = "/imports/assets/csv";
 
 	private final EndpointRateLimiter endpointRateLimiter;
 	private final ThrottlingProperties throttlingProperties;
