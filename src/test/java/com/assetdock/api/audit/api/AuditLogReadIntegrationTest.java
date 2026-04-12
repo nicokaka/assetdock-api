@@ -1,4 +1,5 @@
 package com.assetdock.api.audit.api;
+import com.assetdock.api.support.AbstractIntegrationTest;
 
 import com.assetdock.api.auth.infrastructure.JwtTokenService;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -9,17 +10,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -29,11 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Testcontainers(disabledWithoutDocker = true)
-class AuditLogReadIntegrationTest {
+class AuditLogReadIntegrationTest extends AbstractIntegrationTest {
 
 	private static final UUID ORG_1 = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private static final UUID ORG_2 = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -46,12 +35,6 @@ class AuditLogReadIntegrationTest {
 	private static final UUID AUDIT_LOG_2 = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
 	private static final UUID AUDIT_LOG_3 = UUID.fromString("11111111-2222-3333-4444-555555555555");
 
-	@Container
-	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
-		.withDatabaseName("assetdock_test")
-		.withUsername("assetdock")
-		.withPassword("assetdock");
-
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -63,14 +46,6 @@ class AuditLogReadIntegrationTest {
 
 	@Autowired
 	private JwtTokenService jwtTokenService;
-
-	@DynamicPropertySource
-	static void configureProperties(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-		registry.add("spring.datasource.username", POSTGRES::getUsername);
-		registry.add("spring.datasource.password", POSTGRES::getPassword);
-		registry.add("security.jwt.secret", () -> "test-only-jwt-secret-key-with-32-bytes");
-	}
 
 	@BeforeEach
 	void setUp() {

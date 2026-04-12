@@ -1,21 +1,15 @@
 package com.assetdock.api.auth.api;
 
+import com.assetdock.api.support.AbstractIntegrationTest;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -23,20 +17,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Testcontainers(disabledWithoutDocker = true)
-class AuthLoginIntegrationTest {
+@SpringBootTest(properties = {
+	"security.auth.max-failed-login-attempts=3"
+})
+class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 
 	private static final UUID ORGANIZATION_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 	private static final UUID USER_ID = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
-
-	@Container
-	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
-		.withDatabaseName("assetdock_test")
-		.withUsername("assetdock")
-		.withPassword("assetdock");
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -46,15 +33,6 @@ class AuthLoginIntegrationTest {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
-
-	@DynamicPropertySource
-	static void configureProperties(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-		registry.add("spring.datasource.username", POSTGRES::getUsername);
-		registry.add("spring.datasource.password", POSTGRES::getPassword);
-		registry.add("security.jwt.secret", () -> "test-only-jwt-secret-key-with-32-bytes");
-		registry.add("security.auth.max-failed-login-attempts", () -> "3");
-	}
 
 	@BeforeEach
 	void setUp() {
