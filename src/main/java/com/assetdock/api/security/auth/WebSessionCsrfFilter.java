@@ -18,9 +18,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class WebSessionCsrfFilter extends OncePerRequestFilter {
 
 	private final WebSessionCookieService webSessionCookieService;
+	private final com.assetdock.api.security.config.SecurityProblemSupport securityProblemSupport;
 
-	public WebSessionCsrfFilter(WebSessionCookieService webSessionCookieService) {
+	public WebSessionCsrfFilter(
+		WebSessionCookieService webSessionCookieService,
+		com.assetdock.api.security.config.SecurityProblemSupport securityProblemSupport
+	) {
 		this.webSessionCookieService = webSessionCookieService;
+		this.securityProblemSupport = securityProblemSupport;
 	}
 
 	@Override
@@ -46,7 +51,8 @@ public class WebSessionCsrfFilter extends OncePerRequestFilter {
 			|| csrfHeader == null
 			|| !csrfCookie.equals(csrfHeader)
 			|| !csrfHeader.equals(webAuthentication.csrfToken())) {
-			throw new AccessDeniedException("Invalid CSRF token.");
+			securityProblemSupport.handle(request, response, new AccessDeniedException("Invalid CSRF token."));
+			return;
 		}
 
 		filterChain.doFilter(request, response);
