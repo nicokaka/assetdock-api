@@ -411,7 +411,13 @@ public class GlobalExceptionHandler {
 	}
 
 	@ExceptionHandler(Exception.class)
-	ResponseEntity<ProblemDetail> handleUnexpectedException(Exception exception, WebRequest request) {
+	ResponseEntity<ProblemDetail> handleUnexpectedException(Exception exception, WebRequest request) throws Exception {
+		if (exception instanceof org.springframework.web.ErrorResponse ||
+			exception instanceof jakarta.servlet.ServletException ||
+			exception.getClass().getName().startsWith("org.springframework.security.")) {
+			throw exception;
+		}
+
 		LOGGER.error("Unhandled exception at {}", extractPath(request), exception);
 		ProblemDetail problemDetail = problemDetailFactory.create(
 			HttpStatus.INTERNAL_SERVER_ERROR,
