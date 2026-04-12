@@ -235,6 +235,24 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
+	public User updateProfile(UUID userId, String fullName, String normalizedEmail, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET full_name = :fullName,
+			    email     = :email,
+			    updated_at = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("fullName", fullName)
+			.param("email", normalizedEmail)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.param("userId", userId)
+			.update();
+
+		return findById(userId).orElseThrow();
+	}
+
+	@Override
 	public void updateLastLoginAt(UUID userId, Instant lastLoginAt) {
 		jdbcClient.sql("""
 			UPDATE users

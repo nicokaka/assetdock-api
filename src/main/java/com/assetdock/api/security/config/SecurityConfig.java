@@ -1,6 +1,8 @@
 package com.assetdock.api.security.config;
 
 import com.assetdock.api.security.auth.JwtToAuthenticatedUserConverter;
+import com.assetdock.api.security.auth.WebSessionAuthenticationFilter;
+import com.assetdock.api.security.auth.WebSessionCsrfFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -12,6 +14,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.web.cors.CorsConfiguration;
@@ -38,7 +41,9 @@ public class SecurityConfig {
 	SecurityFilterChain securityFilterChain(
 		HttpSecurity http,
 		SecurityProblemSupport securityProblemSupport,
-		JwtToAuthenticatedUserConverter jwtToAuthenticatedUserConverter
+		JwtToAuthenticatedUserConverter jwtToAuthenticatedUserConverter,
+		WebSessionAuthenticationFilter webSessionAuthenticationFilter,
+		WebSessionCsrfFilter webSessionCsrfFilter
 	) throws Exception {
 		http
 			.csrf(AbstractHttpConfigurer::disable)
@@ -59,7 +64,9 @@ public class SecurityConfig {
 			.authorizeHttpRequests(authorize -> authorize
 				.requestMatchers(publicEndpoints()).permitAll()
 				.anyRequest().authenticated())
-			.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtToAuthenticatedUserConverter)));
+			.oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtToAuthenticatedUserConverter)))
+			.addFilterBefore(webSessionAuthenticationFilter, BearerTokenAuthenticationFilter.class)
+			.addFilterAfter(webSessionCsrfFilter, BearerTokenAuthenticationFilter.class);
 
 		return http.build();
 	}
@@ -68,6 +75,7 @@ public class SecurityConfig {
 		List<String> endpoints = new ArrayList<>();
 		endpoints.add("/actuator/health");
 		endpoints.add("/api/v1/auth/login");
+		endpoints.add("/api/v1/web/auth/login");
 		if (publicDocsEnabled) {
 			endpoints.add("/swagger-ui.html");
 			endpoints.add("/swagger-ui/**");
@@ -95,9 +103,9 @@ public class SecurityConfig {
 
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.setAllowedOrigins(origins);
-		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "OPTIONS"));
-		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-		configuration.setAllowCredentials(false);
+		configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token"));
+		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L);
 		source.registerCorsConfiguration("/**", configuration);
 		return source;

@@ -1,4 +1,5 @@
 package com.assetdock.api.user.api;
+import com.assetdock.api.support.AbstractIntegrationTest;
 
 import com.assetdock.api.auth.infrastructure.JwtTokenService;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -10,17 +11,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -33,11 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Testcontainers(disabledWithoutDocker = true)
-class UserManagementIntegrationTest {
+class UserManagementIntegrationTest extends AbstractIntegrationTest {
 
 	private static final UUID ORG_1 = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private static final UUID ORG_2 = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -48,12 +37,6 @@ class UserManagementIntegrationTest {
 	private static final UUID ORG_ADMIN_2 = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
 	private static final UUID TARGET_USER_1 = UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee");
 	private static final UUID TARGET_USER_2 = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
-
-	@Container
-	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
-		.withDatabaseName("assetdock_test")
-		.withUsername("assetdock")
-		.withPassword("assetdock");
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -66,14 +49,6 @@ class UserManagementIntegrationTest {
 
 	@Autowired
 	private JwtTokenService jwtTokenService;
-
-	@DynamicPropertySource
-	static void configureProperties(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-		registry.add("spring.datasource.username", POSTGRES::getUsername);
-		registry.add("spring.datasource.password", POSTGRES::getPassword);
-		registry.add("security.jwt.secret", () -> "test-only-jwt-secret-key-with-32-bytes");
-	}
 
 	@BeforeEach
 	void setUp() {
@@ -383,6 +358,56 @@ class UserManagementIntegrationTest {
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$", hasSize(100)));
+	}
+
+	@Test
+	void orgAdminShouldUpdateProfileOfUserInOwnOrganization() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/users/{id}", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "fullName": "Updated Name",
+					  "email": "updated.target1@assetdock.dev"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.fullName").value("Updated Name"))
+			.andExpect(jsonPath("$.email").value("updated.target1@assetdock.dev"));
+
+		String eventType = jdbcTemplate.queryForObject(
+			"""
+				SELECT event_type
+				FROM audit_logs
+				WHERE resource_id = ?
+				ORDER BY occurred_at DESC
+				LIMIT 1
+				""",
+			String.class,
+			TARGET_USER_1
+		);
+		org.assertj.core.api.Assertions.assertThat(eventType).isEqualTo("USER_UPDATED");
+	}
+
+	@Test
+	void shouldRejectProfileUpdateWhenEmailAlreadyInUse() throws Exception {
+		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
+
+		// target1@assetdock.dev already belongs to TARGET_USER_1;
+		// trying to assign it to TARGET_USER_2 would normally be cross-tenant,
+		// so use an email that exists within the same org (AUDITOR_1).
+		mockMvc.perform(patch("/users/{id}", TARGET_USER_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "fullName": "Conflict Test",
+					  "email": "auditor1@assetdock.dev"
+					}
+					"""))
+			.andExpect(status().isConflict());
 	}
 
 	private String login(String email, String password) {

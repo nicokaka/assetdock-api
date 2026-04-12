@@ -1,4 +1,5 @@
 package com.assetdock.api.importer.api;
+import com.assetdock.api.support.AbstractIntegrationTest;
 
 import com.assetdock.api.auth.infrastructure.JwtTokenService;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
@@ -9,18 +10,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static com.assetdock.api.support.MockMvcClientIp.uniqueClientIp;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -40,10 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 	"security.throttle.asset-import.max-requests=1",
 	"security.throttle.asset-import.window=PT10M"
 })
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-@Testcontainers(disabledWithoutDocker = true)
-class AssetCsvImportThrottlingIntegrationTest {
+class AssetCsvImportThrottlingIntegrationTest extends AbstractIntegrationTest {
 
 	private static final UUID ORGANIZATION_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private static final UUID USER_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -51,12 +42,6 @@ class AssetCsvImportThrottlingIntegrationTest {
 	private static final UUID MANUFACTURER_ID = UUID.fromString("20000000-0000-0000-0000-000000000002");
 	private static final UUID LOCATION_ID = UUID.fromString("30000000-0000-0000-0000-000000000003");
 	private static final String CLIENT_IP = "203.0.113.20";
-
-	@Container
-	static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
-		.withDatabaseName("assetdock_test")
-		.withUsername("assetdock")
-		.withPassword("assetdock");
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -69,14 +54,6 @@ class AssetCsvImportThrottlingIntegrationTest {
 
 	@Autowired
 	private JwtTokenService jwtTokenService;
-
-	@DynamicPropertySource
-	static void configureProperties(DynamicPropertyRegistry registry) {
-		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-		registry.add("spring.datasource.username", POSTGRES::getUsername);
-		registry.add("spring.datasource.password", POSTGRES::getPassword);
-		registry.add("security.jwt.secret", () -> "test-only-jwt-secret-key-with-32-bytes");
-	}
 
 	@BeforeEach
 	void setUp() {

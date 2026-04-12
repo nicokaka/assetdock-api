@@ -27,4 +27,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Run checks
-        run: ./gradlew clean check
+        run: ./gradlew clean check --stacktrace
