@@ -166,11 +166,17 @@ class WebSessionCsrfIntegrationTest {
 	}
 
 	private void cleanDatabase() {
-		jdbcTemplate.update("DELETE FROM web_sessions");
-		jdbcTemplate.update("DELETE FROM audit_logs");
-		jdbcTemplate.update("DELETE FROM assets");
-		jdbcTemplate.update("DELETE FROM user_roles");
-		jdbcTemplate.update("DELETE FROM users");
-		jdbcTemplate.update("DELETE FROM organizations");
+		jdbcTemplate.update("""
+			TRUNCATE TABLE
+			    web_sessions,
+			    audit_logs,
+			    asset_assignments,
+			    asset_import_jobs,
+			    assets,
+			    user_roles,
+			    users,
+			    organizations
+			CASCADE
+			""");
 	}
 }
