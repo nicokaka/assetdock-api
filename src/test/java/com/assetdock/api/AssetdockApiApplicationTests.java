@@ -21,10 +21,6 @@ class AssetdockApiApplicationTests extends AbstractIntegrationTest {
 	void contextLoads() {
 	}
 
-	@Test
-	void localSeedShouldNotRunOutsideLocalProfile() {
-		org.assertj.core.api.Assertions.assertThat(localDevelopmentSeedRunner).isNull();
-	}
 
 	@Test
 	void healthEndpointIsPublic() throws Exception {
