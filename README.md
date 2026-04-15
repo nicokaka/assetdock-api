@@ -95,10 +95,20 @@ AssetDock is designed to demonstrate the parts of backend engineering that matte
 
 ### Authentication Flow
 
-```
+**1. Web Interface Flow (Default)**
+```text
 Client ──► POST /api/v1/auth/login (credentials)
-       ◄── JWT access token (signed, expiring)
-Client ──► GET /assets (Authorization: Bearer <token>)
+       ◄── Set-Cookie: assetdock_session=<session_id>
+       ◄── Set-Cookie: assetdock_csrf=<csrf_token>
+Client ──► GET /api/v1/assets (Cookie: assetdock_session, Header: X-CSRF-Token)
+       ◄── Tenant-scoped response
+```
+
+**2. Machine-to-Machine Flow (JWT)**
+```text
+Client ──► POST /api/v1/auth/login (credentials)
+       ◄── {"token": "<jwt_access_token>"}
+Client ──► GET /api/v1/assets (Authorization: Bearer <token>)
        ◄── Tenant-scoped response
 ```
 
@@ -231,7 +241,6 @@ Swagger UI at `http://localhost:8080/swagger-ui.html`.
 - Multi-factor authentication (MFA / TOTP)
 - Background job processing for large imports
 - Generic import engine across domains
-- Frontend application (React / Next.js)
 
 ---
 

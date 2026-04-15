@@ -1,0 +1,98 @@
+# =============================================================================
+# AssetDock — Self-Hosted Deployment
+# =============================================================================
+# This Compose file starts the entire AssetDock stack:
+#   - PostgreSQL 17 (database)
+#   - AssetDock API (Spring Boot backend)
+#   - AssetDock Web (React frontend via nginx)
+#
+# Usage:
+#   1. Copy .env.example to .env and configure your values
+#   2. Run:  docker compose -f docker-compose.selfhosted.yml up -d
+#   3. Open: http://localhost:3000
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: assetdock-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Backend API
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: assetdock-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-assetdock-api}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      WEB_SESSION_SECURE_COOKIES: ${WEB_SESSION_SECURE_COOKIES:-false}
+      WEB_SESSION_COOKIE_SAME_SITE: ${WEB_SESSION_COOKIE_SAME_SITE:-Lax}
+      SEED_ENABLED: ${SEED_ENABLED:-true}
+      SEED_ORG_NAME: ${SEED_ORG_NAME}
+      SEED_ORG_SLUG: ${SEED_ORG_SLUG}
+      SEED_ADMIN_FULL_NAME: ${SEED_ADMIN_FULL_NAME}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Frontend Web
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ../assetdock-web
+      dockerfile: Dockerfile
+    container_name: assetdock-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    networks:
+      - assetdock
+
+volumes:
+  postgres-data:
+
+networks:
+  assetdock:
+    driver: bridge

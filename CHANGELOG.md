@@ -4,6 +4,16 @@ All notable changes to this project are documented here.
 
 The format is intentionally lightweight and release-oriented for this portfolio project.
 
+## [1.1.0] - 2026-04-15
+
+### Added
+- Web Session Authentication architecture with robust Anti-CSRF protection
+- Self-Hosted Deployment configuration (`docker-compose.selfhosted.yml` and `SELFHOSTED.md`)
+- `PortfolioSeedRunner` for consistent local and production demo data seeding
+
+### Fixed
+- Stabilized API contracts and generic error handling bypasses.
+
 ## [1.0.0] - 2026-03-29
 
 Initial public portfolio release of AssetDock API.
