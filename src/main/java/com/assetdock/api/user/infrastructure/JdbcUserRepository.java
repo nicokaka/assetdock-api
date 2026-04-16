@@ -66,21 +66,6 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
-	public List<User> findAllByOrganizationId(UUID organizationId, int limit) {
-		List<UserSnapshot> snapshots = jdbcClient.sql(baseSelect() + """
-			WHERE organization_id = :organizationId
-			ORDER BY full_name, email
-			LIMIT :limit
-			""")
-			.param("organizationId", organizationId)
-			.param("limit", limit)
-			.query(this::mapUserSnapshot)
-			.list();
-
-		return buildUsersWithRoles(snapshots);
-	}
-
-	@Override
 	public List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search) {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE organization_id = :organizationId ");
 
