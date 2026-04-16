@@ -41,4 +41,6 @@ public interface UserRepository {
 	int countTotalUsersForOrganization(UUID organizationId);
 
 	int countActiveUsersForOrganization(UUID organizationId);
+
+	void updatePasswordHash(UUID userId, String passwordHash, Instant updatedAt);
 }

@@ -3,6 +3,7 @@ package com.assetdock.api.user.application;
 import com.assetdock.api.audit.application.AuditLogCommand;
 import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
+import com.assetdock.api.auth.domain.WebSessionRepository;
 import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
 import com.assetdock.api.organization.domain.OrganizationRepository;
@@ -35,6 +36,7 @@ public class UserManagementService {
 	private final TenantAccessService tenantAccessService;
 	private final PasswordEncoder passwordEncoder;
 	private final AuditLogService auditLogService;
+	private final WebSessionRepository webSessionRepository;
 	private final Clock clock;
 
 	public UserManagementService(
@@ -43,6 +45,7 @@ public class UserManagementService {
 		TenantAccessService tenantAccessService,
 		PasswordEncoder passwordEncoder,
 		AuditLogService auditLogService,
+		WebSessionRepository webSessionRepository,
 		Clock clock
 	) {
 		this.userRepository = userRepository;
@@ -50,6 +53,7 @@ public class UserManagementService {
 		this.tenantAccessService = tenantAccessService;
 		this.passwordEncoder = passwordEncoder;
 		this.auditLogService = auditLogService;
+		this.webSessionRepository = webSessionRepository;
 		this.clock = clock;
 	}
 
@@ -257,6 +261,46 @@ public class UserManagementService {
 		));
 
 		return toView(updatedUser, actor);
+	}
+
+	@Transactional
+	public void changePassword(AuthenticatedUserPrincipal actor, UUID userId, ChangePasswordCommand command) {
+		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
+		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
+
+		// Only the user themselves or a SUPER_ADMIN may change the password.
+		if (!actor.userId().equals(userId) && !actor.isSuperAdmin()) {
+			throw new org.springframework.security.access.AccessDeniedException("Password change for another user requires SUPER_ADMIN.");
+		}
+
+		// When the caller is the user themselves, verify the current password.
+		if (actor.userId().equals(userId)) {
+			if (!passwordEncoder.matches(command.currentPassword(), user.passwordHash())) {
+				throw new InvalidUserRequestException("Current password is incorrect.");
+			}
+		}
+
+		Instant now = Instant.now(clock);
+		String newHash = passwordEncoder.encode(command.newPassword());
+		userRepository.updatePasswordHash(userId, newHash, now);
+
+		// Revoke all active sessions to force re-authentication.
+		webSessionRepository.invalidateAllByUserId(userId, now);
+
+		LOGGER.info(
+			"user_management action=change_password actor_id={} target_user_id={}",
+			actor.userId(),
+			userId
+		);
+		auditLogService.record(new AuditLogCommand(
+			user.organizationId(),
+			actor.userId(),
+			AuditEventType.USER_UPDATED,
+			"user",
+			user.id(),
+			"SUCCESS",
+			java.util.Map.of("action", "password_changed", "sessionsRevoked", "true")
+		));
 	}
 
 	private UUID resolveTargetOrganizationId(

@@ -13,4 +13,10 @@ public interface WebSessionRepository {
 	void updateLastActiveAt(UUID sessionId, Instant lastActiveAt);
 
 	void invalidate(UUID sessionId, Instant invalidatedAt);
+
+	/**
+	 * Invalidates all active sessions for a user. Used when a password change
+	 * requires all existing sessions to be revoked for security reasons.
+	 */
+	void invalidateAllByUserId(UUID userId, Instant invalidatedAt);
 }

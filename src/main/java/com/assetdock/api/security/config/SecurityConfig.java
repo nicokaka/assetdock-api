@@ -6,6 +6,8 @@ import com.assetdock.api.security.auth.WebSessionCsrfFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,6 +27,8 @@ import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 public class SecurityConfig {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(SecurityConfig.class);
 
 	private final boolean publicDocsEnabled;
 	private final String allowedOrigins;
@@ -97,8 +101,16 @@ public class SecurityConfig {
 			.map(String::trim)
 			.filter(origin -> !origin.isBlank())
 			.toList();
+
 		if (origins.isEmpty()) {
-			return source;
+			// No allowed origins configured — CORS will reject all cross-origin requests.
+			// This is the secure default; configure app.surface.allowed-origins to allow the frontend.
+			LOGGER.warn(
+				"CORS WARNING: app.surface.allowed-origins is not configured. "
+					+ "All cross-origin requests will be denied by the browser. "
+					+ "Set ALLOWED_ORIGINS to your frontend URL in production."
+			);
+			return source; // Empty source = no CORS config = browser blocks cross-origin requests.
 		}
 
 		CorsConfiguration configuration = new CorsConfiguration();
@@ -108,6 +120,7 @@ public class SecurityConfig {
 		configuration.setAllowCredentials(true);
 		configuration.setMaxAge(3600L);
 		source.registerCorsConfiguration("/**", configuration);
+		LOGGER.info("CORS configured for {} origin(s): {}", origins.size(), origins);
 		return source;
 	}
 }

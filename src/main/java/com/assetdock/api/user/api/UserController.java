@@ -1,6 +1,7 @@
 package com.assetdock.api.user.api;
 
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.user.application.ChangePasswordCommand;
 import com.assetdock.api.user.application.CreateUserCommand;
 import com.assetdock.api.user.application.UpdateUserProfileCommand;
 import com.assetdock.api.user.application.UserManagementService;
@@ -101,5 +102,19 @@ public class UserController {
 		@Valid @RequestBody UpdateUserStatusRequest request
 	) {
 		return userManagementService.updateStatus(principal, id, request.status());
+	}
+
+	@PatchMapping("/{id}/password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void changePassword(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@Valid @RequestBody ChangePasswordRequest request
+	) {
+		userManagementService.changePassword(
+			principal,
+			id,
+			new ChangePasswordCommand(request.currentPassword(), request.newPassword())
+		);
 	}
 }

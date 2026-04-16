@@ -5,6 +5,7 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -15,10 +16,16 @@ public class SecurityStartupValidator implements InitializingBean {
 	
 	private final Environment environment;
 	private final JwtProperties jwtProperties;
+	private final String allowedOrigins;
 
-	public SecurityStartupValidator(Environment environment, JwtProperties jwtProperties) {
+	public SecurityStartupValidator(
+		Environment environment,
+		JwtProperties jwtProperties,
+		@Value("${app.surface.allowed-origins:}") String allowedOrigins
+	) {
 		this.environment = environment;
 		this.jwtProperties = jwtProperties;
+		this.allowedOrigins = allowedOrigins;
 	}
 
 	@Override
@@ -41,6 +48,15 @@ public class SecurityStartupValidator implements InitializingBean {
 		
 		if (jwtProperties.secret().length() < 32) {
 			LOGGER.warn("SECURITY WARNING: security.jwt.secret is less than 32 characters long. This is insecure.");
+		}
+
+		boolean noOriginsConfigured = allowedOrigins == null || allowedOrigins.isBlank()
+			|| Arrays.stream(allowedOrigins.split(",")).map(String::trim).allMatch(String::isBlank);
+		if (noOriginsConfigured) {
+			LOGGER.warn(
+				"CORS WARNING: app.surface.allowed-origins is not set in a non-local/test profile. "
+					+ "Cross-origin browser requests will be blocked. Set ALLOWED_ORIGINS to your frontend URL."
+			);
 		}
 	}
 }

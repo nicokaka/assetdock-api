@@ -90,6 +90,19 @@ public class JdbcWebSessionRepository implements WebSessionRepository {
 			.update();
 	}
 
+	@Override
+	public void invalidateAllByUserId(UUID userId, Instant invalidatedAt) {
+		jdbcClient.sql("""
+			UPDATE web_sessions
+			SET invalidated_at = :invalidatedAt
+			WHERE user_id = :userId
+			  AND invalidated_at IS NULL
+			""")
+			.param("userId", userId)
+			.param("invalidatedAt", JdbcColumnReaders.toOffsetDateTime(invalidatedAt))
+			.update();
+	}
+
 	private WebSession mapSession(ResultSet resultSet, int rowNum) throws SQLException {
 		return new WebSession(
 			resultSet.getObject("id", UUID.class),

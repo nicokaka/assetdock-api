@@ -322,6 +322,20 @@ public class JdbcUserRepository implements UserRepository {
 		return count == null ? 0 : count;
 	}
 
+	@Override
+	public void updatePasswordHash(UUID userId, String passwordHash, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE users
+			SET password_hash = :passwordHash,
+			    updated_at    = :updatedAt
+			WHERE id = :userId
+			""")
+			.param("passwordHash", passwordHash)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.param("userId", userId)
+			.update();
+	}
+
 	private User toUser(UserSnapshot snapshot) {
 		return new User(
 			snapshot.id(),
