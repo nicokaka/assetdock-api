@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/assets/export", "/api/v1/assets/export"})
+@RequestMapping("/assets/export")
 public class AssetExportController {
 
 	private final AssetExportService assetExportService;
