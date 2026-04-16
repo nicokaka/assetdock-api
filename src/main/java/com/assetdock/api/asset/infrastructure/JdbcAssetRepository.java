@@ -106,16 +106,60 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
-	public List<Asset> findAllByOrganizationId(UUID organizationId, int limit) {
-		return jdbcClient.sql(baseSelect() + """
-			WHERE organization_id = :organizationId
-			ORDER BY display_name, asset_tag
-			LIMIT :limit
-			""")
+	public List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search) {
+		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE organization_id = :organizationId ");
+		
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS asset_status) ");
+		}
+		
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+		
+		sql.append(" ORDER BY display_name, asset_tag LIMIT :limit OFFSET :offset");
+
+		var statement = jdbcClient.sql(sql.toString())
 			.param("organizationId", organizationId)
 			.param("limit", limit)
-			.query(this::mapAsset)
-			.list();
+			.param("offset", offset);
+
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+		
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		return statement.query(this::mapAsset).list();
+	}
+
+	@Override
+	public long countForOrganization(UUID organizationId, String status, String search) {
+		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM assets WHERE organization_id = :organizationId ");
+		
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS asset_status) ");
+		}
+		
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+
+		var statement = jdbcClient.sql(sql.toString())
+			.param("organizationId", organizationId);
+
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+		
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		Long count = statement.query(Long.class).single();
+		return count == null ? 0 : count;
 	}
 
 	@Override
@@ -198,6 +242,25 @@ public class JdbcAssetRepository implements AssetRepository {
 			.update();
 
 		return findByIdAndOrganizationId(assetId, organizationId).orElseThrow();
+	}
+
+	@Override
+	public java.util.Map<AssetStatus, Integer> countByStatusForOrganization(UUID organizationId) {
+		return jdbcClient.sql("""
+			SELECT status, COUNT(*) as count
+			FROM assets
+			WHERE organization_id = :organizationId
+			  AND archived_at IS NULL
+			GROUP BY status
+			""")
+			.param("organizationId", organizationId)
+			.query(rs -> {
+				java.util.Map<AssetStatus, Integer> counts = new java.util.EnumMap<>(AssetStatus.class);
+				while (rs.next()) {
+					counts.put(AssetStatus.valueOf(rs.getString("status")), rs.getInt("count"));
+				}
+				return counts;
+			});
 	}
 
 	private String baseSelect() {

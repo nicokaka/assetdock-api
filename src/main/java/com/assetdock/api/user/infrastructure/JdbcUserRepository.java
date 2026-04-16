@@ -81,6 +81,49 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
+	public List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search) {
+		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE organization_id = :organizationId ");
+
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		sql.append(" ORDER BY full_name, email LIMIT :limit OFFSET :offset");
+
+		var statement = jdbcClient.sql(sql.toString())
+			.param("organizationId", organizationId)
+			.param("limit", limit)
+			.param("offset", offset);
+
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		List<UserSnapshot> snapshots = statement.query(this::mapUserSnapshot).list();
+		return buildUsersWithRoles(snapshots);
+	}
+
+	@Override
+	public long countForOrganization(UUID organizationId, String search) {
+		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE organization_id = :organizationId ");
+
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		var statement = jdbcClient.sql(sql.toString())
+			.param("organizationId", organizationId);
+
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		Long count = statement.query(Long.class).single();
+		return count == null ? 0 : count;
+	}
+
+
+	@Override
 	public boolean existsByEmail(String normalizedEmail) {
 		Boolean exists = jdbcClient.sql("""
 			SELECT EXISTS(
@@ -265,6 +308,33 @@ public class JdbcUserRepository implements UserRepository {
 			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(lastLoginAt))
 			.param("userId", userId)
 			.update();
+	}
+
+	@Override
+	public int countTotalUsersForOrganization(UUID organizationId) {
+		Integer count = jdbcClient.sql("""
+			SELECT COUNT(*)
+			FROM users
+			WHERE organization_id = :organizationId
+			""")
+			.param("organizationId", organizationId)
+			.query(Integer.class)
+			.single();
+		return count == null ? 0 : count;
+	}
+
+	@Override
+	public int countActiveUsersForOrganization(UUID organizationId) {
+		Integer count = jdbcClient.sql("""
+			SELECT COUNT(*)
+			FROM users
+			WHERE organization_id = :organizationId
+			  AND status = 'ACTIVE'
+			""")
+			.param("organizationId", organizationId)
+			.query(Integer.class)
+			.single();
+		return count == null ? 0 : count;
 	}
 
 	private User toUser(UserSnapshot snapshot) {

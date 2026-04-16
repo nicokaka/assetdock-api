@@ -11,7 +11,10 @@ public interface AssetRepository {
 
 	Asset save(Asset asset);
 
-	List<Asset> findAllByOrganizationId(UUID organizationId, int limit);
+	List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search);
+
+	long countForOrganization(UUID organizationId, String status, String search);
+
 
 	Optional<Asset> findByIdAndOrganizationId(UUID assetId, UUID organizationId);
 
@@ -20,4 +23,6 @@ public interface AssetRepository {
 	Asset update(Asset asset);
 
 	Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt);
+
+	java.util.Map<AssetStatus, Integer> countByStatusForOrganization(UUID organizationId);
 }

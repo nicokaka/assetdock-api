@@ -98,13 +98,13 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 			LOGGER.warn("portfolio_seed status=skipped reason=no_organization_found");
 			return;
 		}
-		var existingAssets = assetRepository.findAllByOrganizationId(orgId, 1);
+		var existingAssets = assetRepository.findAllPaginated(orgId, 1, 0, null, null);
 		if (!existingAssets.isEmpty()) {
 			LOGGER.info("portfolio_seed status=skipped reason=assets_already_exist org_id={}", orgId);
 			return;
 		}
 
-		var admin = userRepository.findAllByOrganizationId(orgId, 1).stream().findFirst().orElse(null);
+		var admin = userRepository.findAllPaginated(orgId, 1, 0, null).stream().findFirst().orElse(null);
 		if (admin == null) {
 			LOGGER.warn("portfolio_seed status=skipped reason=no_admin_user_found org_id={}", orgId);
 			return;

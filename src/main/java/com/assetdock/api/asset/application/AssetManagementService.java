@@ -97,14 +97,23 @@ public class AssetManagementService {
 	}
 
 	@Transactional(readOnly = true)
-	public List<AssetView> list(AuthenticatedUserPrincipal actor) {
+	public AssetPageView list(AuthenticatedUserPrincipal actor, Integer page, Integer size, String status, String search) {
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireAssetReadAccess(actor, organizationId);
 
-		return assetRepository.findAllByOrganizationId(organizationId, QueryLimits.DEFAULT_LIST_LIMIT)
+		int actualPage = page != null && page > 0 ? page : 1;
+		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
+		int offset = (actualPage - 1) * actualSize;
+
+		List<AssetView> items = assetRepository.findAllPaginated(organizationId, actualSize, offset, status, search)
 			.stream()
 			.map(this::toView)
 			.toList();
+
+		long totalItems = assetRepository.countForOrganization(organizationId, status, search);
+		int totalPages = (int) Math.ceil((double) totalItems / actualSize);
+
+		return new AssetPageView(items, actualPage, actualSize, totalItems, totalPages);
 	}
 
 	@Transactional(readOnly = true)

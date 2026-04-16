@@ -16,6 +16,10 @@ public interface UserRepository {
 
 	List<User> findAllByOrganizationId(UUID organizationId, int limit);
 
+	List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search);
+
+	long countForOrganization(UUID organizationId, String search);
+
 	boolean existsByEmail(String normalizedEmail);
 
 	User save(User user);
@@ -35,4 +39,8 @@ public interface UserRepository {
 	User updateProfile(UUID userId, String fullName, String normalizedEmail, Instant updatedAt);
 
 	void updateLastLoginAt(UUID userId, Instant lastLoginAt);
+
+	int countTotalUsersForOrganization(UUID organizationId);
+
+	int countActiveUsersForOrganization(UUID organizationId);
 }

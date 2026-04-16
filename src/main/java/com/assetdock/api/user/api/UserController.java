@@ -5,6 +5,7 @@ import com.assetdock.api.user.application.CreateUserCommand;
 import com.assetdock.api.user.application.UpdateUserProfileCommand;
 import com.assetdock.api.user.application.UserManagementService;
 import com.assetdock.api.user.application.UserView;
+import com.assetdock.api.user.application.UserPageView;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -51,8 +52,13 @@ public class UserController {
 	}
 
 	@GetMapping
-	List<UserView> listUsers(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-		return userManagementService.listUsers(principal);
+	UserPageView listUsers(
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer page,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer size,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String search
+	) {
+		return userManagementService.listUsers(principal, page, size, search);
 	}
 
 	@GetMapping("/{id}")

@@ -2,6 +2,7 @@ package com.assetdock.api.asset.api;
 
 import com.assetdock.api.asset.application.AssetManagementService;
 import com.assetdock.api.asset.application.AssetView;
+import com.assetdock.api.asset.application.AssetPageView;
 import com.assetdock.api.asset.application.CreateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetStatusCommand;
@@ -58,8 +59,14 @@ public class AssetController {
 	}
 
 	@GetMapping
-	List<AssetView> list(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-		return assetManagementService.list(principal);
+	AssetPageView list(
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer page,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer size,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String search
+	) {
+		return assetManagementService.list(principal, page, size, status, search);
 	}
 
 	@GetMapping("/{id}")
