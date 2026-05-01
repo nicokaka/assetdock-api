@@ -64,11 +64,13 @@ public class SetupService {
 			throw new SystemAlreadyConfiguredException();
 		}
 
-		// Re-check inside the transaction with a row-level lock to prevent race conditions.
-		Long lockedCount = jdbcClient.sql("SELECT COUNT(*) FROM organizations FOR UPDATE")
-			.query(Long.class)
-			.single();
-		if (lockedCount != null && lockedCount > 0) {
+		// Use a Postgres transaction-level advisory lock to guarantee mutual exclusion.
+		// hashtext('assetdock_setup_lock') generates a deterministic integer lock ID.
+		jdbcClient.sql("SELECT pg_advisory_xact_lock(hashtext('assetdock_setup_lock'))")
+			.query()
+			.singleRow();
+
+		if (isConfigured()) {
 			throw new SystemAlreadyConfiguredException();
 		}
 
