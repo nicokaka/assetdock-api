@@ -50,4 +50,5 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'user.timezone', 'UTC'
+	environment 'DOCKER_API_VERSION', '1.41'
 }
