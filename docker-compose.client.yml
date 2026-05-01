@@ -1,0 +1,101 @@
+# =============================================================================
+# AssetDock — Client Self-Hosted Deployment
+# =============================================================================
+# This is the deployment file for end users and customers.
+# No compilation or development tools required — only Docker.
+#
+# Pre-built images are pulled automatically from the container registry.
+#
+# Quick Start:
+#   1. Make sure Docker Desktop is running
+#   2. Open a terminal in this directory and run:
+#        docker compose -f docker-compose.client.yml up -d
+#   3. Open http://localhost:3000 in your browser
+#   4. The setup wizard will guide you through initial configuration
+#
+# Access from other computers on your local network:
+#   Replace localhost with the IP address of this machine.
+#   Example: http://192.168.1.100:3000
+#
+# To stop:    docker compose -f docker-compose.client.yml down
+# To update:  docker compose -f docker-compose.client.yml pull && docker compose -f docker-compose.client.yml up -d
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Database — PostgreSQL 17
+  # Stores all application data. Data persists across restarts via a volume.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: assetdock-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: assetdock
+      POSTGRES_USER: assetdock
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      TZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assetdock -d assetdock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Backend API — AssetDock API
+  # REST API server. Starts only after the database is ready.
+  # ---------------------------------------------------------------------------
+  api:
+    image: ghcr.io/nicokaka/assetdock-api:latest
+    container_name: assetdock-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DATABASE_URL: jdbc:postgresql://postgres:5432/assetdock
+      DB_USERNAME: assetdock
+      DB_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set. Generate with: openssl rand -base64 48}
+      JWT_ISSUER: assetdock-api
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      WEB_SESSION_SECURE_COOKIES: "false"
+      WEB_SESSION_COOKIE_SAME_SITE: Lax
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Frontend Web — AssetDock Web
+  # Serves the React application via nginx. Exposes the UI on port 3000.
+  # ---------------------------------------------------------------------------
+  web:
+    image: ghcr.io/nicokaka/assetdock-web:latest
+    container_name: assetdock-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:80"
+    networks:
+      - assetdock
+
+volumes:
+  # Persists database data across container restarts and upgrades.
+  postgres-data:
+
+networks:
+  assetdock:
+    driver: bridge
