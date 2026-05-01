@@ -14,6 +14,7 @@ import com.assetdock.api.catalog.application.InvalidCatalogRequestException;
 import com.assetdock.api.importer.application.AssetImportJobNotFoundException;
 import com.assetdock.api.importer.application.InvalidAssetImportRequestException;
 import com.assetdock.api.organization.application.OrganizationNotFoundException;
+import com.assetdock.api.setup.application.SystemAlreadyConfiguredException;
 import com.assetdock.api.user.application.EmailAlreadyInUseException;
 import com.assetdock.api.user.application.InvalidUserRequestException;
 import com.assetdock.api.user.application.UserNotFoundException;
@@ -390,6 +391,22 @@ public class GlobalExceptionHandler {
 		);
 
 		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(SystemAlreadyConfiguredException.class)
+	ResponseEntity<ProblemDetail> handleSystemAlreadyConfigured(
+		SystemAlreadyConfiguredException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.CONFLICT,
+			"System already configured",
+			exception.getMessage(),
+			"urn:assetdock:problem:system-already-configured",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(problemDetail);
 	}
 
 	@ExceptionHandler(ErrorResponseException.class)

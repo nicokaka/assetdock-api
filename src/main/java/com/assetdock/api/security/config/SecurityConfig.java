@@ -80,6 +80,7 @@ public class SecurityConfig {
 		endpoints.add("/actuator/health");
 		endpoints.add("/api/v1/auth/login");
 		endpoints.add("/api/v1/web/auth/login");
+		endpoints.add("/api/v1/setup/**");
 		if (publicDocsEnabled) {
 			endpoints.add("/swagger-ui.html");
 			endpoints.add("/swagger-ui/**");
