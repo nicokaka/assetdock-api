@@ -2,8 +2,7 @@ package com.assetdock.api.auth.infrastructure;
 
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import java.time.Instant;
-import java.util.LinkedHashSet;
-import java.util.Set;
+
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;

@@ -10,7 +10,7 @@ import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserStatus;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Locale;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

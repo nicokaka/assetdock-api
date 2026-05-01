@@ -9,7 +9,7 @@ import com.assetdock.api.audit.domain.AuditEventType;
 import com.assetdock.api.catalog.domain.CategoryRepository;
 import com.assetdock.api.catalog.domain.LocationRepository;
 import com.assetdock.api.catalog.domain.ManufacturerRepository;
-import com.assetdock.api.common.query.QueryLimits;
+
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import com.assetdock.api.user.domain.UserRepository;

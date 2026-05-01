@@ -8,7 +8,7 @@ import com.assetdock.api.asset.application.UpdateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetStatusCommand;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
-import java.util.List;
+
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

@@ -62,7 +62,7 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/assetdock
       DB_USERNAME: assetdock
       DB_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set. Generate with: openssl rand -base64 48}
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set. Generate with: openssl rand -base64 48}"
       JWT_ISSUER: assetdock-api
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       WEB_SESSION_SECURE_COOKIES: "false"
