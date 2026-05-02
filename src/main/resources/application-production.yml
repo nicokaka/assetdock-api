@@ -8,15 +8,8 @@ app:
   surface:
     public-docs-enabled: false
     allowed-origins: ${FRONTEND_URL:}
-  seed:
-    enabled: ${SEED_ENABLED:false}
-    organization-name: ${SEED_ORG_NAME:}
-    organization-slug: ${SEED_ORG_SLUG:}
-    admin-full-name: ${SEED_ADMIN_FULL_NAME:}
-    admin-email: ${SEED_ADMIN_EMAIL:}
-    admin-password: ${SEED_ADMIN_PASSWORD:}
 
 security:
   web-session:
-    secure-cookies: true
-    same-site: ${WEB_SESSION_COOKIE_SAME_SITE:None}
+    secure-cookies: ${WEB_SESSION_SECURE_COOKIES:false}
+    same-site: ${WEB_SESSION_COOKIE_SAME_SITE:Lax}

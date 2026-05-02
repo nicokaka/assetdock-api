@@ -17,11 +17,13 @@ import org.slf4j.LoggerFactory;
 import com.assetdock.api.common.util.EmailNormalizer;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Profile("local")
 public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(LocalDevelopmentSeedRunner.class);
