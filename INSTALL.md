@@ -158,6 +158,60 @@ docker compose -f docker-compose.client.yml up -d
 
 ---
 
+## HTTPS (optional)
+
+By default, AssetDock runs over HTTP on your local network. If you need HTTPS — for example, to access it securely over the internet — follow these steps.
+
+**Requirements:**
+- A domain name with a DNS A record pointing to this machine
+- Ports 80 and 443 open and publicly accessible
+
+**Step 1 — Add DOMAIN to your `.env` file:**
+
+```
+DOMAIN=assetdock.mycompany.com
+FRONTEND_URL=https://assetdock.mycompany.com
+```
+
+**Step 2 — Start with the HTTPS compose file instead of the standard one:**
+
+```bash
+docker compose -f docker-compose.https.yml up -d
+```
+
+Caddy will automatically obtain a TLS certificate from Let's Encrypt on first startup. No manual certificate management required.
+
+> **Note:** Your server must be reachable from the internet on ports 80 and 443 for Let's Encrypt to verify domain ownership. If your server is behind a firewall or NAT, HTTPS via Let's Encrypt is not possible without additional configuration (e.g. Cloudflare Tunnel).
+
+---
+
+## Health Monitoring (optional)
+
+AssetDock can be combined with [Uptime Kuma](https://github.com/louislam/uptime-kuma), a lightweight monitoring dashboard that tracks the availability of your services.
+
+**Step 1 — Start the monitoring overlay alongside your main stack:**
+
+```bash
+docker compose -f docker-compose.client.yml -f docker-compose.monitoring.yml up -d
+```
+
+**Step 2 — Open the dashboard:**
+
+```
+http://localhost:3001
+```
+
+Create an admin account on first access, then add these monitors:
+
+| Monitor | Type | URL |
+|---|---|---|
+| AssetDock API | HTTP keyword | `http://assetdock-api:8080/actuator/health` — keyword: `UP` |
+| AssetDock Web | HTTP | `http://assetdock-web:80` |
+
+> Uptime Kuma runs inside the same Docker network (`assetdock`) and can reach the containers directly by container name.
+
+---
+
 ## Troubleshooting
 
 **The page doesn't load:**

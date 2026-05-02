@@ -1,0 +1,37 @@
+# =============================================================================
+# AssetDock — Caddy Reverse Proxy Configuration
+# =============================================================================
+# Caddy automatically provisions and renews TLS certificates from Let's Encrypt.
+#
+# Requirements:
+#   - A domain name pointing to this server (DNS A record)
+#   - Ports 80 and 443 open and reachable from the internet
+#
+# Set DOMAIN in your .env file. Example: DOMAIN=assetdock.mycompany.com
+# =============================================================================
+
+{$DOMAIN} {
+
+    # Forward all traffic to the nginx container.
+    # nginx already handles /api/ proxying to the backend internally.
+    reverse_proxy assetdock-web:80
+
+    # Compress responses before sending them to the browser
+    encode gzip
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options  "nosniff"
+        X-Frame-Options         "SAMEORIGIN"
+        Referrer-Policy         "strict-origin-when-cross-origin"
+        # Remove the server version header
+        -Server
+    }
+
+    log {
+        output stderr
+        format console
+        level INFO
+    }
+}

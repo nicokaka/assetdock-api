@@ -1,0 +1,142 @@
+# =============================================================================
+# AssetDock — HTTPS Self-Hosted Deployment
+# =============================================================================
+# Use this file INSTEAD of docker-compose.client.yml when you have a domain
+# name and want automatic TLS (HTTPS) via Let's Encrypt.
+#
+# Requirements:
+#   - A domain name pointing to this server (DNS A record)
+#   - Ports 80 and 443 open and publicly accessible
+#
+# Quick Start:
+#   1. Set DOMAIN, JWT_SECRET, and DB_PASSWORD in your .env file
+#   2. Run: docker compose -f docker-compose.https.yml up -d
+#   3. Open https://<your-domain> in your browser
+#
+# Caddy will automatically obtain and renew your TLS certificate.
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Database — PostgreSQL 17
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: assetdock-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: assetdock
+      POSTGRES_USER: assetdock
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      TZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assetdock -d assetdock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Backend API — AssetDock API
+  # ---------------------------------------------------------------------------
+  api:
+    image: ghcr.io/nicokaka/assetdock-api:latest
+    container_name: assetdock-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DATABASE_URL: jdbc:postgresql://postgres:5432/assetdock
+      DB_USERNAME: assetdock
+      DB_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set. Generate with: openssl rand -base64 48}"
+      JWT_ISSUER: assetdock-api
+      # IMPORTANT: must match your actual public domain
+      FRONTEND_URL: "https://${DOMAIN:?DOMAIN must be set to your domain name (e.g. assetdock.mycompany.com)}"
+      # Secure cookies are required when running over HTTPS
+      WEB_SESSION_SECURE_COOKIES: "true"
+      WEB_SESSION_COOKIE_SAME_SITE: Lax
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Frontend Web — AssetDock Web (nginx)
+  # Not exposed directly — Caddy handles all external traffic.
+  # ---------------------------------------------------------------------------
+  web:
+    image: ghcr.io/nicokaka/assetdock-web:latest
+    container_name: assetdock-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - assetdock
+
+  # ---------------------------------------------------------------------------
+  # Reverse Proxy — Caddy (automatic HTTPS via Let's Encrypt)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: assetdock-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - assetdock
+    depends_on:
+      web:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
+  # Backup — Automated PostgreSQL Backups
+  # ---------------------------------------------------------------------------
+  backup:
+    image: prodrigestivill/postgres-backup-local:17-alpine
+    container_name: assetdock-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: assetdock
+      POSTGRES_USER: assetdock
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      SCHEDULE: "0 2 * * *"
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_KEEP_WEEKS: "0"
+      BACKUP_KEEP_MONTHS: "0"
+      HEALTHCHECK_PORT: "8080"
+    volumes:
+      - assetdock-backups:/backups
+    networks:
+      - assetdock
+
+volumes:
+  postgres-data:
+  assetdock-backups:
+  caddy-data:
+  caddy-config:
+
+networks:
+  assetdock:
+    driver: bridge

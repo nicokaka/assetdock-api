@@ -1,0 +1,32 @@
+# =============================================================================
+# AssetDock — Monitoring Overlay (Uptime Kuma)
+# =============================================================================
+# Adds a lightweight health monitoring dashboard to your deployment.
+#
+# Usage — run alongside the main compose file:
+#   docker compose -f docker-compose.client.yml -f docker-compose.monitoring.yml up -d
+#
+# Then open: http://localhost:3001
+#
+# On first access, create an admin account and add monitors:
+#   - API health:  http://assetdock-api:8080/actuator/health (JSON keyword: "UP")
+#   - Web:         http://assetdock-web:80
+#
+# Port can be changed via the MONITORING_PORT variable in your .env file.
+# =============================================================================
+
+services:
+
+  monitoring:
+    image: louislam/uptime-kuma:1
+    container_name: assetdock-monitoring
+    restart: unless-stopped
+    ports:
+      - "${MONITORING_PORT:-3001}:3001"
+    volumes:
+      - assetdock-monitoring:/app/data
+    networks:
+      - assetdock
+
+volumes:
+  assetdock-monitoring:
