@@ -85,9 +85,19 @@ Example: `http://192.168.1.50:3000`
 
 ## Updating to a new version
 
+Run the included update script:
+
+```bash
+./update.sh
 ```
+
+This will pull the latest images and restart the stack with zero data loss. Your database and configuration are preserved.
+
+If you don't have the script, you can run the commands manually:
+
+```bash
 docker compose -f docker-compose.client.yml pull
-docker compose -f docker-compose.client.yml up -d
+docker compose -f docker-compose.client.yml up -d --remove-orphans
 ```
 
 ---
@@ -106,13 +116,44 @@ docker compose -f docker-compose.client.yml up -d
 
 ## Backup
 
-All data is stored in the Docker volume `postgres-data`. To back up:
+AssetDock automatically creates daily backups of your database.
 
-```
+- Backups run every day at **02:00 UTC**
+- The last **7 daily backups** are retained automatically
+- Backups are stored in the Docker volume `assetdock-backups`
+
+No action is required — backups start as soon as the stack is running.
+
+### Copying backups to your host machine
+
+To copy your backups out of Docker to a folder on your machine:
+
+```bash
+# Linux / macOS
 docker run --rm \
-  -v assetdock_postgres-data:/source \
-  -v $(pwd):/backup \
-  alpine tar czf /backup/assetdock-backup-$(date +%Y%m%d).tar.gz -C /source .
+  -v assetdock_assetdock-backups:/source \
+  -v "$(pwd)/backups":/dest \
+  alpine cp -r /source/. /dest/
+
+# This creates a 'backups/' folder in your current directory.
+```
+
+### Restoring from a backup
+
+```bash
+# 1. Stop the application (keeps the database container running)
+docker compose -f docker-compose.client.yml stop api web
+
+# 2. List available backups
+docker exec assetdock-backup ls /backups/daily/
+
+# 3. Restore (replace <backup-file.sql.gz> with the filename you want)
+docker exec -i assetdock-db \
+  bash -c 'PGPASSWORD=$POSTGRES_PASSWORD pg_restore -U assetdock -d assetdock --clean --if-exists' \
+  < <(docker exec assetdock-backup cat /backups/daily/<backup-file.sql.gz> | gunzip)
+
+# 4. Restart the application
+docker compose -f docker-compose.client.yml up -d
 ```
 
 ---

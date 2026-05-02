@@ -25,6 +25,7 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 	private static final String LOGIN_PATH = "/api/v1/auth/login";
 	private static final String WEB_LOGIN_PATH = "/api/v1/web/auth/login";
 	private static final String IMPORT_PATH = "/imports/assets/csv";
+	private static final String SETUP_PATH = "/api/v1/setup";
 
 	private final EndpointRateLimiter endpointRateLimiter;
 	private final ThrottlingProperties throttlingProperties;
@@ -48,7 +49,8 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		return !throttlingProperties.enabled() || (!isLoginRequest(request) && !isImportRequest(request));
+		return !throttlingProperties.enabled()
+			|| (!isLoginRequest(request) && !isImportRequest(request) && !isSetupRequest(request));
 	}
 
 	@Override
@@ -58,9 +60,14 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 		FilterChain filterChain
 	) throws ServletException, IOException {
 		EndpointRateLimiter.Endpoint endpoint = resolveEndpoint(request);
-		ThrottlingProperties.EndpointPolicy policy = endpoint == EndpointRateLimiter.Endpoint.LOGIN
-			? throttlingProperties.login()
-			: throttlingProperties.assetImport();
+		ThrottlingProperties.EndpointPolicy policy;
+		if (endpoint == EndpointRateLimiter.Endpoint.LOGIN) {
+			policy = throttlingProperties.login();
+		} else if (endpoint == EndpointRateLimiter.Endpoint.ASSET_IMPORT) {
+			policy = throttlingProperties.assetImport();
+		} else {
+			policy = throttlingProperties.systemSetup();
+		}
 
 		EndpointRateLimiter.RateLimitDecision decision = endpointRateLimiter.tryAcquire(
 			endpoint,
@@ -96,10 +103,18 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 		return "POST".equalsIgnoreCase(request.getMethod()) && IMPORT_PATH.equals(request.getRequestURI());
 	}
 
+	private boolean isSetupRequest(HttpServletRequest request) {
+		return "POST".equalsIgnoreCase(request.getMethod()) && SETUP_PATH.equals(request.getRequestURI());
+	}
+
 	private EndpointRateLimiter.Endpoint resolveEndpoint(HttpServletRequest request) {
-		return isLoginRequest(request)
-			? EndpointRateLimiter.Endpoint.LOGIN
-			: EndpointRateLimiter.Endpoint.ASSET_IMPORT;
+		if (isLoginRequest(request)) {
+			return EndpointRateLimiter.Endpoint.LOGIN;
+		}
+		if (isImportRequest(request)) {
+			return EndpointRateLimiter.Endpoint.ASSET_IMPORT;
+		}
+		return EndpointRateLimiter.Endpoint.SYSTEM_SETUP;
 	}
 
 	private String resolveOrigin(HttpServletRequest request) {

@@ -16,6 +16,7 @@ public class EndpointRateLimiter {
 	public EndpointRateLimiter() {
 		counters.put(Endpoint.LOGIN, new HashMap<>());
 		counters.put(Endpoint.ASSET_IMPORT, new HashMap<>());
+		counters.put(Endpoint.SYSTEM_SETUP, new HashMap<>());
 	}
 
 	public synchronized RateLimitDecision tryAcquire(
@@ -54,7 +55,8 @@ public class EndpointRateLimiter {
 
 	public enum Endpoint {
 		LOGIN,
-		ASSET_IMPORT
+		ASSET_IMPORT,
+		SYSTEM_SETUP
 	}
 
 	private record Counter(

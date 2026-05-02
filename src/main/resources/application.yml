@@ -90,3 +90,8 @@ security:
       max-requests: ${IMPORT_THROTTLE_MAX_REQUESTS:5}
       window: ${IMPORT_THROTTLE_WINDOW:PT5M}
       max-tracked-clients: ${IMPORT_THROTTLE_MAX_TRACKED_CLIENTS:5000}
+    system-setup:
+      enabled: ${SETUP_THROTTLE_ENABLED:true}
+      max-requests: ${SETUP_THROTTLE_MAX_REQUESTS:3}
+      window: ${SETUP_THROTTLE_WINDOW:PT10M}
+      max-tracked-clients: ${SETUP_THROTTLE_MAX_TRACKED_CLIENTS:500}

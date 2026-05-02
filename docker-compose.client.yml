@@ -92,9 +92,39 @@ services:
     networks:
       - assetdock
 
+  # ---------------------------------------------------------------------------
+  # Backup — Automated PostgreSQL Backups
+  # Runs pg_dump daily at 02:00 UTC. Retains 7 daily backups.
+  # Backups are stored in the 'assetdock-backups' volume.
+  # To restore: docker exec assetdock-backup /bin/sh -c 'psql -h $POSTGRES_HOST ..."
+  # ---------------------------------------------------------------------------
+  backup:
+    image: prodrigestivill/postgres-backup-local:17-alpine
+    container_name: assetdock-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: assetdock
+      POSTGRES_USER: assetdock
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      SCHEDULE: "0 2 * * *"
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_KEEP_WEEKS: "0"
+      BACKUP_KEEP_MONTHS: "0"
+      HEALTHCHECK_PORT: "8080"
+    volumes:
+      - assetdock-backups:/backups
+    networks:
+      - assetdock
+
 volumes:
   # Persists database data across container restarts and upgrades.
   postgres-data:
+  # Stores automated daily pg_dump backups (7-day retention).
+  assetdock-backups:
 
 networks:
   assetdock:

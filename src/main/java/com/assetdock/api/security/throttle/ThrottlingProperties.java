@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record ThrottlingProperties(
 	boolean enabled,
 	EndpointPolicy login,
-	EndpointPolicy assetImport
+	EndpointPolicy assetImport,
+	EndpointPolicy systemSetup
 ) {
 
 	public ThrottlingProperties {
@@ -16,6 +17,9 @@ public record ThrottlingProperties(
 		}
 		if (assetImport == null) {
 			throw new IllegalArgumentException("security.throttle.asset-import must be configured.");
+		}
+		if (systemSetup == null) {
+			throw new IllegalArgumentException("security.throttle.system-setup must be configured.");
 		}
 	}
 

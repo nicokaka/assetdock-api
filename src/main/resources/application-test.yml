@@ -16,8 +16,19 @@ security:
     enabled: false
     login:
       enabled: false
+      max-requests: 10
+      window: PT1M
+      max-tracked-clients: 10
     asset-import:
       enabled: false
+      max-requests: 5
+      window: PT5M
+      max-tracked-clients: 10
+    system-setup:
+      enabled: false
+      max-requests: 3
+      window: PT10M
+      max-tracked-clients: 10
 app:
   surface:
     public-docs-enabled: true
