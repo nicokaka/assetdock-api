@@ -117,4 +117,14 @@ public class UserController {
 			new ChangePasswordCommand(request.currentPassword(), request.newPassword())
 		);
 	}
+
+	@PatchMapping("/{id}/reset-password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void adminResetPassword(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+		@Valid @RequestBody AdminResetPasswordRequest request
+	) {
+		userManagementService.adminResetPassword(principal, id, request.newPassword());
+	}
 }

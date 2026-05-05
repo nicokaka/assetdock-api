@@ -165,14 +165,14 @@ public class GlobalExceptionHandler {
 		WebRequest request
 	) {
 		ProblemDetail problemDetail = problemDetailFactory.create(
-			HttpStatus.FORBIDDEN,
+			HttpStatus.LOCKED,
 			"Authentication blocked",
 			"Locked users cannot authenticate.",
 			"urn:assetdock:problem:user-locked",
 			extractPath(request)
 		);
 
-		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+		return ResponseEntity.status(HttpStatus.LOCKED).body(problemDetail);
 	}
 
 	@ExceptionHandler(OrganizationNotFoundException.class)

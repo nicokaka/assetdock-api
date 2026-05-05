@@ -303,6 +303,50 @@ public class UserManagementService {
 		));
 	}
 
+	@Transactional
+	public void adminResetPassword(AuthenticatedUserPrincipal actor, UUID userId, String newPassword) {
+		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
+		
+		// Only SUPER_ADMIN can reset passwords globally. ORG_ADMIN can only reset within their tenant.
+		if (!actor.isSuperAdmin()) {
+			tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
+			
+			// An ORG_ADMIN cannot reset a SUPER_ADMIN's password
+			if (user.roles().contains(UserRole.SUPER_ADMIN)) {
+				throw new org.springframework.security.access.AccessDeniedException("Cannot reset password for SUPER_ADMIN.");
+			}
+		}
+
+		Instant now = Instant.now(clock);
+		String newHash = passwordEncoder.encode(newPassword);
+		userRepository.updatePasswordHash(userId, newHash, now);
+
+		// Unlock the user if they were locked due to failed attempts
+		if (user.status() == UserStatus.LOCKED) {
+			userRepository.updateStatus(userId, UserStatus.ACTIVE, now);
+			userRepository.resetFailedLoginAttempts(userId, now);
+		}
+
+		// Revoke all active sessions to force re-authentication.
+		webSessionRepository.invalidateAllByUserId(userId, now);
+
+		LOGGER.info(
+			"user_management action=admin_reset_password actor_id={} target_user_id={}",
+			actor.userId(),
+			userId
+		);
+		
+		auditLogService.record(new AuditLogCommand(
+			user.organizationId(),
+			actor.userId(),
+			AuditEventType.PASSWORD_RESET_BY_ADMIN,
+			"user",
+			user.id(),
+			"SUCCESS",
+			java.util.Map.of("sessionsRevoked", "true", "accountUnlocked", String.valueOf(user.status() == UserStatus.LOCKED))
+		));
+	}
+
 	private UUID resolveTargetOrganizationId(
 		AuthenticatedUserPrincipal actor,
 		UUID requestedOrganizationId,

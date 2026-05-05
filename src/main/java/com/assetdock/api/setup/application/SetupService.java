@@ -102,7 +102,7 @@ public class SetupService {
 		);
 		userRepository.save(admin);
 
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organization.id(),
 			admin.id(),
 			AuditEventType.SYSTEM_SETUP_COMPLETED,
