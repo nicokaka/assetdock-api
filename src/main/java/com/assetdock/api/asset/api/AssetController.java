@@ -6,8 +6,10 @@ import com.assetdock.api.asset.application.AssetPageView;
 import com.assetdock.api.asset.application.CreateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetStatusCommand;
+import com.assetdock.api.asset.application.TimelineEventView;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
+import java.util.List;
 
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -28,9 +30,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class AssetController {
 
 	private final AssetManagementService assetManagementService;
+	private final com.assetdock.api.asset.application.AssetLabelService assetLabelService;
+	private final com.assetdock.api.asset.application.AssetTimelineService assetTimelineService;
 
-	public AssetController(AssetManagementService assetManagementService) {
+	public AssetController(
+		AssetManagementService assetManagementService,
+		com.assetdock.api.asset.application.AssetLabelService assetLabelService,
+		com.assetdock.api.asset.application.AssetTimelineService assetTimelineService
+	) {
 		this.assetManagementService = assetManagementService;
+		this.assetLabelService = assetLabelService;
+		this.assetTimelineService = assetTimelineService;
 	}
 
 	@PostMapping
@@ -118,5 +128,42 @@ public class AssetController {
 		@AuthenticationPrincipal AuthenticatedUserPrincipal principal
 	) {
 		return assetManagementService.archive(principal, id);
+	}
+
+	@GetMapping("/{id}/qr-code")
+	org.springframework.http.ResponseEntity<byte[]> getQrCode(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal
+	) {
+		// Verify access by getting the asset
+		AssetView asset = assetManagementService.get(principal, id);
+		byte[] qrCode = assetLabelService.generateQrCodePng(asset.assetTag());
+		
+		return org.springframework.http.ResponseEntity.ok()
+			.contentType(org.springframework.http.MediaType.IMAGE_PNG)
+			.body(qrCode);
+	}
+
+	@GetMapping("/{id}/label")
+	org.springframework.http.ResponseEntity<byte[]> getLabel(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal
+	) {
+		// Verify access
+		AssetView asset = assetManagementService.get(principal, id);
+		byte[] pdf = assetLabelService.generateLabelPdf(asset.assetTag(), asset.displayName(), asset.serialNumber());
+		
+		return org.springframework.http.ResponseEntity.ok()
+			.contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+			.header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"label-" + asset.assetTag() + ".pdf\"")
+			.body(pdf);
+	}
+
+	@GetMapping("/{id}/timeline")
+	public List<TimelineEventView> getAssetTimeline(
+		@PathVariable UUID id,
+		@AuthenticationPrincipal AuthenticatedUserPrincipal principal
+	) {
+		return assetTimelineService.getAssetTimeline(principal, id);
 	}
 }

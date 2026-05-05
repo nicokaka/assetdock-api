@@ -1,0 +1,2 @@
+ALTER TYPE audit_event_type ADD VALUE 'ASSET_CHECKED_OUT';
+ALTER TYPE audit_event_type ADD VALUE 'ASSET_CHECKED_IN';

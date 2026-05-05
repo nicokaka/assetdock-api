@@ -35,6 +35,13 @@ dependencies {
 	implementation 'org.flywaydb:flyway-database-postgresql'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.16'
 	implementation 'org.apache.commons:commons-csv:1.14.1'
+	
+	// QR Code / Barcode (Zxing)
+	implementation 'com.google.zxing:core:3.5.3'
+	implementation 'com.google.zxing:javase:3.5.3'
+	
+	// PDF Generation (PDFBox)
+	implementation 'org.apache.pdfbox:pdfbox:3.0.1'
 
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 

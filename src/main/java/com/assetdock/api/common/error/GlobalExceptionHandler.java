@@ -9,6 +9,7 @@ import com.assetdock.api.assignment.application.InvalidAssignmentRequestExceptio
 import com.assetdock.api.asset.application.AssetAlreadyExistsException;
 import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.asset.application.InvalidAssetRequestException;
+import com.assetdock.api.checkout.application.InvalidCheckoutRequestException;
 import com.assetdock.api.catalog.application.CatalogItemAlreadyExistsException;
 import com.assetdock.api.catalog.application.InvalidCatalogRequestException;
 import com.assetdock.api.importer.application.AssetImportJobNotFoundException;
@@ -334,6 +335,22 @@ public class GlobalExceptionHandler {
 			"Invalid asset request",
 			exception.getMessage(),
 			"urn:assetdock:problem:invalid-asset-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidCheckoutRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidCheckoutRequest(
+		InvalidCheckoutRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid checkout request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-checkout-request",
 			extractPath(request)
 		);
 

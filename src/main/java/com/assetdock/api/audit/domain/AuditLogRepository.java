@@ -8,6 +8,8 @@ public interface AuditLogRepository {
 
 	void save(AuditLogEntry entry);
 
+	List<AuditLogEntry> findByResourceId(UUID organizationId, UUID resourceId);
+
 	long countByCriteria(
 		UUID organizationId,
 		AuditEventType eventType,

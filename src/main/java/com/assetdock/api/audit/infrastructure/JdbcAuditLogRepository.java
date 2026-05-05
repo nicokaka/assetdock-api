@@ -76,6 +76,20 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 	}
 
 	@Override
+	public List<AuditLogEntry> findByResourceId(UUID organizationId, UUID resourceId) {
+		return jdbcClient.sql("""
+			SELECT * FROM audit_logs
+			WHERE organization_id = :organizationId
+			  AND resource_id = :resourceId
+			ORDER BY occurred_at DESC
+			""")
+			.param("organizationId", organizationId)
+			.param("resourceId", resourceId)
+			.query(this::mapAuditLogEntry)
+			.list();
+	}
+
+	@Override
 	public long countByCriteria(
 		UUID organizationId,
 		AuditEventType eventType,
