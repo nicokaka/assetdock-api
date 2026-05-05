@@ -16,10 +16,7 @@ public class AuditContextProvider {
 		}
 
 		HttpServletRequest request = attributes.getRequest();
-		String forwardedFor = request.getHeader("X-Forwarded-For");
-		String ipAddress = forwardedFor != null && !forwardedFor.isBlank()
-			? forwardedFor.split(",")[0].trim()
-			: request.getRemoteAddr();
+		String ipAddress = request.getRemoteAddr();
 
 		Object requestIdAttribute = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
 		String requestId = requestIdAttribute instanceof String requestIdValue

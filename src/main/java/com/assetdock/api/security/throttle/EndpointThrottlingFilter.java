@@ -96,15 +96,15 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 
 	private boolean isLoginRequest(HttpServletRequest request) {
 		return "POST".equalsIgnoreCase(request.getMethod())
-			&& (LOGIN_PATH.equals(request.getRequestURI()) || WEB_LOGIN_PATH.equals(request.getRequestURI()));
+			&& (LOGIN_PATH.equals(request.getServletPath()) || WEB_LOGIN_PATH.equals(request.getServletPath()));
 	}
 
 	private boolean isImportRequest(HttpServletRequest request) {
-		return "POST".equalsIgnoreCase(request.getMethod()) && IMPORT_PATH.equals(request.getRequestURI());
+		return "POST".equalsIgnoreCase(request.getMethod()) && IMPORT_PATH.equals(request.getServletPath());
 	}
 
 	private boolean isSetupRequest(HttpServletRequest request) {
-		return "POST".equalsIgnoreCase(request.getMethod()) && SETUP_PATH.equals(request.getRequestURI());
+		return "POST".equalsIgnoreCase(request.getMethod()) && SETUP_PATH.equals(request.getServletPath());
 	}
 
 	private EndpointRateLimiter.Endpoint resolveEndpoint(HttpServletRequest request) {

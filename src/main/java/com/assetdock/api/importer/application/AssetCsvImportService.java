@@ -302,7 +302,7 @@ public class AssetCsvImportService {
 		Map<String, Object> details,
 		String outcome
 	) {
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			job.organizationId(),
 			actorUserId,
 			eventType,
@@ -314,7 +314,7 @@ public class AssetCsvImportService {
 	}
 
 	private void recordImportFailureAttempt(UUID organizationId, UUID actorUserId, String fileName, String reasonCode) {
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actorUserId,
 			AuditEventType.CSV_IMPORT_FAILED,
