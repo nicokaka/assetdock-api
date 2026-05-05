@@ -163,6 +163,61 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
+	public List<Asset> findAllPaginatedGlobally(int limit, int offset, String status, String search) {
+		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE 1=1 ");
+		
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS asset_status) ");
+		}
+		
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+		
+		sql.append(" ORDER BY display_name, asset_tag LIMIT :limit OFFSET :offset");
+
+		var statement = jdbcClient.sql(sql.toString())
+			.param("limit", limit)
+			.param("offset", offset);
+
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+		
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		return statement.query(this::mapAsset).list();
+	}
+
+	@Override
+	public long countGlobally(String status, String search) {
+		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM assets WHERE 1=1 ");
+		
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS asset_status) ");
+		}
+		
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+
+		var statement = jdbcClient.sql(sql.toString());
+
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+		
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		Long count = statement.query(Long.class).single();
+		return count == null ? 0 : count;
+	}
+
+	@Override
 	public Optional<Asset> findByIdAndOrganizationId(UUID assetId, UUID organizationId) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE id = :assetId

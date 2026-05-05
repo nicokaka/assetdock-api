@@ -73,6 +73,12 @@ public class AssetCsvImportService {
 			throw new InvalidAssetImportRequestException("empty-file", "A non-empty CSV file is required.");
 		}
 
+		String contentType = file.getContentType();
+		if (contentType != null && !contentType.startsWith("text/") && !contentType.equals("application/csv")) {
+			recordImportFailureAttempt(organizationId, actor.userId(), sanitizeFileName(file.getOriginalFilename()), "invalid-content-type");
+			throw new InvalidAssetImportRequestException("invalid-content-type", "File must be a CSV text file.");
+		}
+
 		Instant now = Instant.now(clock);
 		AssetImportJob job = new AssetImportJob(
 			UUID.randomUUID(),
@@ -141,12 +147,17 @@ public class AssetCsvImportService {
 				Instant.now(clock),
 				job.createdAt()
 			);
-			assetImportJobRepository.update(completedJob);
-			recordAudit(completedJob, actor.userId(), AuditEventType.CSV_IMPORT_COMPLETED, Map.of(
-				"totalRows", completedJob.totalRows(),
-				"successCount", completedJob.successCount(),
-				"errorCount", completedJob.errorCount()
-			), "SUCCESS");
+			try {
+				assetImportJobRepository.update(completedJob);
+				recordAudit(completedJob, actor.userId(), AuditEventType.CSV_IMPORT_COMPLETED, Map.of(
+					"totalRows", completedJob.totalRows(),
+					"successCount", completedJob.successCount(),
+					"errorCount", completedJob.errorCount()
+				), "SUCCESS");
+			} catch (Exception e) {
+				org.slf4j.LoggerFactory.getLogger(AssetCsvImportService.class)
+					.error("Failed to update import job {} after processing", job.id(), e);
+			}
 			return toView(completedJob);
 		}
 		catch (InvalidAssetImportRequestException exception) {

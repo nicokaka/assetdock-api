@@ -24,6 +24,9 @@ spring:
     validate-migration-naming: true
 server:
   port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api/v1
+  forward-headers-strategy: NATIVE
   shutdown: graceful
   error:
     include-message: never

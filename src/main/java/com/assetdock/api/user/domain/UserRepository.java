@@ -14,6 +14,10 @@ public interface UserRepository {
 
 	List<User> findAll(int limit);
 
+	List<User> findAllPaginatedGlobally(int limit, int offset, String search);
+
+	long countGlobally(String search);
+
 	List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search);
 
 	long countForOrganization(UUID organizationId, String search);

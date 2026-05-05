@@ -78,12 +78,6 @@ public class AuthenticationService {
 				return new InvalidCredentialsException();
 			});
 
-		if (!passwordEncoder.matches(command.password(), user.passwordHash())) {
-			handleFailedPasswordAttempt(user, normalizedEmail);
-			recordLoginFailure(user.organizationId(), null, user.id(), normalizedEmail, "invalid_password");
-			throw new InvalidCredentialsException();
-		}
-
 		if (user.status() == UserStatus.INACTIVE) {
 			recordLoginFailure(user.organizationId(), null, user.id(), normalizedEmail, "inactive");
 			throw new InactiveUserAuthenticationException();
@@ -92,6 +86,12 @@ public class AuthenticationService {
 		if (user.status() == UserStatus.LOCKED) {
 			recordLoginFailure(user.organizationId(), null, user.id(), normalizedEmail, "locked");
 			throw new LockedUserAuthenticationException();
+		}
+
+		if (!passwordEncoder.matches(command.password(), user.passwordHash())) {
+			handleFailedPasswordAttempt(user, normalizedEmail);
+			recordLoginFailure(user.organizationId(), null, user.id(), normalizedEmail, "invalid_password");
+			throw new InvalidCredentialsException();
 		}
 
 		Instant loginAt = Instant.now(clock);
@@ -103,7 +103,7 @@ public class AuthenticationService {
 		userRepository.updateLastLoginAt(user.id(), loginAt);
 
 		AuthenticatedUserPrincipal principal = AuthenticatedUserPrincipal.from(authenticatedUser);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			authenticatedUser.organizationId(),
 			authenticatedUser.id(),
 			AuditEventType.LOGIN_SUCCESS,

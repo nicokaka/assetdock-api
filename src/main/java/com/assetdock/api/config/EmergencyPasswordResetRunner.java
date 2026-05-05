@@ -92,7 +92,7 @@ public class EmergencyPasswordResetRunner implements ApplicationRunner {
 
 			webSessionRepository.invalidateAllByUserId(user.id(), now);
 
-			auditLogService.record(new AuditLogCommand(
+			auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 				user.organizationId(),
 				user.id(),
 				AuditEventType.PASSWORD_RESET_BY_ADMIN,

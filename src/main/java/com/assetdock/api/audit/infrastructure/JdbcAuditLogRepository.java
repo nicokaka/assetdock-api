@@ -111,6 +111,16 @@ public class JdbcAuditLogRepository implements AuditLogRepository {
 		return statement.query(this::mapAuditLogEntry).list();
 	}
 
+	@Override
+	public int deleteOlderThan(Instant timestamp) {
+		return jdbcClient.sql("""
+			DELETE FROM audit_logs
+			WHERE occurred_at < :timestamp
+			""")
+			.param("timestamp", JdbcColumnReaders.toOffsetDateTime(timestamp))
+			.update();
+	}
+
 	private String buildWhereClause(
 		UUID organizationId,
 		AuditEventType eventType,

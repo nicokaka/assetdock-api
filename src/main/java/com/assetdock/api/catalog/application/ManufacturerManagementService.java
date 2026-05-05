@@ -59,7 +59,7 @@ public class ManufacturerManagementService {
 		);
 
 		Manufacturer savedManufacturer = manufacturerRepository.save(manufacturer);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actor.userId(),
 			AuditEventType.MANUFACTURER_CREATED,
@@ -114,7 +114,7 @@ public class ManufacturerManagementService {
 		);
 
 		Manufacturer persistedManufacturer = manufacturerRepository.update(updatedManufacturer);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actor.userId(),
 			AuditEventType.MANUFACTURER_UPDATED,

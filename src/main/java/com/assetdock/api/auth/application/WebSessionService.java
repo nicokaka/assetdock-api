@@ -169,7 +169,7 @@ public class WebSessionService {
 		details.put("sessionIdPrefix", session.id().toString().substring(0, 8));
 		details.put("expiresAt", session.expiresAt().toString());
 
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			user.organizationId(),
 			user.id(),
 			eventType,

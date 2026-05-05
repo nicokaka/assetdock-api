@@ -23,4 +23,9 @@ public interface AuditLogRepository {
 		int limit,
 		int offset
 	);
+
+	/**
+	 * Deletes all audit logs older than the given timestamp to prevent indefinite growth.
+	 */
+	int deleteOlderThan(Instant timestamp);
 }

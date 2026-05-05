@@ -6,8 +6,10 @@ import com.assetdock.api.security.throttle.ThrottlingProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 @EnableConfigurationProperties({LocalSeedProperties.class, AuthHardeningProperties.class, ThrottlingProperties.class})
 public class AssetdockApiApplication {
 

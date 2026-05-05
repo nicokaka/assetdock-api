@@ -218,7 +218,7 @@ public class AssetAssignmentManagementService {
 	}
 
 	private void recordAudit(AssetAssignment assignment, UUID actorUserId, AuditEventType eventType) {
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			assignment.organizationId(),
 			actorUserId,
 			eventType,

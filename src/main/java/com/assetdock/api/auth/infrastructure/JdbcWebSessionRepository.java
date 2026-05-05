@@ -103,6 +103,17 @@ public class JdbcWebSessionRepository implements WebSessionRepository {
 			.update();
 	}
 
+	@Override
+	public void deleteExpiredBefore(Instant timestamp) {
+		jdbcClient.sql("""
+			DELETE FROM web_sessions
+			WHERE expires_at < :timestamp
+			   OR invalidated_at < :timestamp
+			""")
+			.param("timestamp", JdbcColumnReaders.toOffsetDateTime(timestamp))
+			.update();
+	}
+
 	private WebSession mapSession(ResultSet resultSet, int rowNum) throws SQLException {
 		return new WebSession(
 			resultSet.getObject("id", UUID.class),

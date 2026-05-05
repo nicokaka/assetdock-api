@@ -19,4 +19,10 @@ public interface WebSessionRepository {
 	 * requires all existing sessions to be revoked for security reasons.
 	 */
 	void invalidateAllByUserId(UUID userId, Instant invalidatedAt);
+
+	/**
+	 * Deletes sessions that have been expired before the given timestamp.
+	 * Used for cleanup.
+	 */
+	void deleteExpiredBefore(Instant timestamp);
 }

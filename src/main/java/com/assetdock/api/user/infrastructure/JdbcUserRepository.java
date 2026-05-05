@@ -107,6 +107,46 @@ public class JdbcUserRepository implements UserRepository {
 		return count == null ? 0 : count;
 	}
 
+	@Override
+	public List<User> findAllPaginatedGlobally(int limit, int offset, String search) {
+		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE 1=1 ");
+
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		sql.append(" ORDER BY full_name, email LIMIT :limit OFFSET :offset");
+
+		var statement = jdbcClient.sql(sql.toString())
+			.param("limit", limit)
+			.param("offset", offset);
+
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		List<UserSnapshot> snapshots = statement.query(this::mapUserSnapshot).list();
+		return buildUsersWithRoles(snapshots);
+	}
+
+	@Override
+	public long countGlobally(String search) {
+		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE 1=1 ");
+
+		if (search != null && !search.isBlank()) {
+			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		var statement = jdbcClient.sql(sql.toString());
+
+		if (search != null && !search.isBlank()) {
+			statement = statement.param("search", "%" + search + "%");
+		}
+
+		Long count = statement.query(Long.class).single();
+		return count == null ? 0 : count;
+	}
+
 
 	@Override
 	public boolean existsByEmail(String normalizedEmail) {

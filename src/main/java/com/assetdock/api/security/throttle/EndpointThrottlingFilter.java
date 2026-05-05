@@ -22,10 +22,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class EndpointThrottlingFilter extends OncePerRequestFilter {
 
-	private static final String LOGIN_PATH = "/api/v1/auth/login";
-	private static final String WEB_LOGIN_PATH = "/api/v1/web/auth/login";
+	private static final String LOGIN_PATH = "/auth/login";
+	private static final String WEB_LOGIN_PATH = "/web/auth/login";
 	private static final String IMPORT_PATH = "/imports/assets/csv";
-	private static final String SETUP_PATH = "/api/v1/setup";
+	private static final String SETUP_PATH = "/setup";
 
 	private final EndpointRateLimiter endpointRateLimiter;
 	private final ThrottlingProperties throttlingProperties;
@@ -85,7 +85,7 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 			"Too many requests",
 			"Too many requests. Please retry later.",
 			"urn:assetdock:problem:rate-limit-exceeded",
-			request.getRequestURI(),
+			request.getServletPath(),
 			Map.of("retryAfterSeconds", decision.retryAfterSeconds())
 		);
 		response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());

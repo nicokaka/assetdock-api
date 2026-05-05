@@ -51,6 +51,7 @@ public class SetupService {
 		this.clock = clock;
 	}
 
+	@Transactional(readOnly = true)
 	public boolean isConfigured() {
 		Long count = jdbcClient.sql("SELECT COUNT(*) FROM organizations")
 			.query(Long.class)

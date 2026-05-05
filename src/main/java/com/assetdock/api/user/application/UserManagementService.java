@@ -94,7 +94,7 @@ public class UserManagementService {
 			savedUser.id(),
 			savedUser.organizationId()
 		);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			savedUser.organizationId(),
 			actor.userId(),
 			AuditEventType.USER_CREATED,
@@ -118,12 +118,15 @@ public class UserManagementService {
 		int offset = (actualPage - 1) * actualSize;
 
 		if (actor.isSuperAdmin()) {
-			// Note: Global user list for SUPER_ADMIN is currently bounded to avoid pagination complexity across all tenants.
-			List<UserView> items = userRepository.findAll(actualSize)
+			List<UserView> items = userRepository.findAllPaginatedGlobally(actualSize, offset, search)
 				.stream()
 				.map(user -> toView(user, actor))
 				.toList();
-			return new UserPageView(items, 1, items.size(), items.size(), 1);
+			
+			long totalItems = userRepository.countGlobally(search);
+			int totalPages = (int) Math.ceil((double) totalItems / actualSize);
+			
+			return new UserPageView(items, actualPage, actualSize, totalItems, totalPages);
 		}
 
 		UUID actorOrganizationId = requireActorOrganizationId(actor);
@@ -174,7 +177,7 @@ public class UserManagementService {
 			actor.userId(),
 			userId
 		);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			updatedUser.organizationId(),
 			actor.userId(),
 			AuditEventType.USER_UPDATED,
@@ -212,7 +215,7 @@ public class UserManagementService {
 			user.roles(),
 			updatedUser.roles()
 		);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			updatedUser.organizationId(),
 			actor.userId(),
 			AuditEventType.USER_ROLES_UPDATED,
@@ -247,7 +250,7 @@ public class UserManagementService {
 			userId,
 			status
 		);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			updatedUser.organizationId(),
 			actor.userId(),
 			resolveStatusAuditEvent(user.status(), updatedUser.status()),
@@ -292,7 +295,7 @@ public class UserManagementService {
 			actor.userId(),
 			userId
 		);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			user.organizationId(),
 			actor.userId(),
 			AuditEventType.USER_UPDATED,
@@ -336,7 +339,7 @@ public class UserManagementService {
 			userId
 		);
 		
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			user.organizationId(),
 			actor.userId(),
 			AuditEventType.PASSWORD_RESET_BY_ADMIN,

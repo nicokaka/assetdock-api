@@ -78,9 +78,9 @@ public class SecurityConfig {
 	private String[] publicEndpoints() {
 		List<String> endpoints = new ArrayList<>();
 		endpoints.add("/actuator/health");
-		endpoints.add("/api/v1/auth/login");
-		endpoints.add("/api/v1/web/auth/login");
-		endpoints.add("/api/v1/setup/**");
+		endpoints.add("/auth/login");
+		endpoints.add("/web/auth/login");
+		endpoints.add("/setup/**");
 		if (publicDocsEnabled) {
 			endpoints.add("/swagger-ui.html");
 			endpoints.add("/swagger-ui/**");

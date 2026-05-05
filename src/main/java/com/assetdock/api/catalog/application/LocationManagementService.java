@@ -58,7 +58,7 @@ public class LocationManagementService {
 		);
 
 		Location savedLocation = locationRepository.save(location);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actor.userId(),
 			AuditEventType.LOCATION_CREATED,
@@ -112,7 +112,7 @@ public class LocationManagementService {
 		);
 
 		Location persistedLocation = locationRepository.update(updatedLocation);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actor.userId(),
 			AuditEventType.LOCATION_UPDATED,

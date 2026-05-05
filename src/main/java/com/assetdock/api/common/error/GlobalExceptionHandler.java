@@ -125,7 +125,18 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
 	}
 
+	@ExceptionHandler(AccessDeniedException.class)
+	ResponseEntity<ProblemDetail> handleAccessDenied(AccessDeniedException exception, WebRequest request) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.FORBIDDEN,
+			"Access denied",
+			"You do not have permission to access this resource.",
+			"urn:assetdock:problem:access-denied",
+			extractPath(request)
+		);
 
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+	}
 
 	@ExceptionHandler(InvalidCredentialsException.class)
 	ResponseEntity<ProblemDetail> handleInvalidCredentials(
@@ -430,8 +441,7 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<ProblemDetail> handleUnexpectedException(Exception exception, WebRequest request) throws Exception {
 		if (exception instanceof org.springframework.web.ErrorResponse ||
-			exception instanceof jakarta.servlet.ServletException ||
-			exception.getClass().getName().startsWith("org.springframework.security.")) {
+			exception instanceof jakarta.servlet.ServletException) {
 			throw exception;
 		}
 

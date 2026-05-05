@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/web/auth")
+@RequestMapping("/web/auth")
 public class WebAuthController {
 
 	private static final List<UserRole> ROLE_PRECEDENCE = List.of(

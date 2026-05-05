@@ -98,12 +98,24 @@ public class AssetManagementService {
 
 	@Transactional(readOnly = true)
 	public AssetPageView list(AuthenticatedUserPrincipal actor, Integer page, Integer size, String status, String search) {
-		UUID organizationId = requireActorOrganizationId(actor);
-		tenantAccessService.requireAssetReadAccess(actor, organizationId);
-
 		int actualPage = page != null && page > 0 ? page : 1;
 		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
 		int offset = (actualPage - 1) * actualSize;
+
+		if (actor.isSuperAdmin()) {
+			List<AssetView> items = assetRepository.findAllPaginatedGlobally(actualSize, offset, status, search)
+				.stream()
+				.map(this::toView)
+				.toList();
+
+			long totalItems = assetRepository.countGlobally(status, search);
+			int totalPages = (int) Math.ceil((double) totalItems / actualSize);
+
+			return new AssetPageView(items, actualPage, actualSize, totalItems, totalPages);
+		}
+
+		UUID organizationId = requireActorOrganizationId(actor);
+		tenantAccessService.requireAssetReadAccess(actor, organizationId);
 
 		List<AssetView> items = assetRepository.findAllPaginated(organizationId, actualSize, offset, status, search)
 			.stream()
@@ -281,7 +293,7 @@ public class AssetManagementService {
 		AuditEventType eventType,
 		Map<String, Object> details
 	) {
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			asset.organizationId(),
 			actor.userId(),
 			eventType,

@@ -58,7 +58,7 @@ public class CategoryManagementService {
 		);
 
 		Category savedCategory = categoryRepository.save(category);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actor.userId(),
 			AuditEventType.CATEGORY_CREATED,
@@ -112,7 +112,7 @@ public class CategoryManagementService {
 		);
 
 		Category persistedCategory = categoryRepository.update(updatedCategory);
-		auditLogService.record(new AuditLogCommand(
+		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organizationId,
 			actor.userId(),
 			AuditEventType.CATEGORY_UPDATED,
