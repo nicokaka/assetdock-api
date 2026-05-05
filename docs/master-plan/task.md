@@ -1,0 +1,17 @@
+- [x] Fase 1.1: QR Code & Barcode
+  - [x] Add zxing and pdfbox dependencies to `build.gradle`
+  - [x] Create `AssetLabelService.java`
+  - [x] Add endpoints to `AssetController.java` (`/assets/{id}/qr-code` and `/assets/{id}/label`)
+  - [x] Create `V30__add_qr_code_fields.sql` (if necessary) - Not necessary since QR codes are generated on the fly.
+  - [x] Frontend: Create `qr-code-viewer.tsx`
+  - [x] Frontend: Integrate QR Code viewer in `asset-detail-view.tsx`
+- [x] Fase 1.2: Check-in / Check-out
+  - [x] Create `AssetCheckout.java` domain
+  - [x] Create `CheckoutController.java`
+  - [x] Create `V31__create_asset_checkouts_table.sql`
+  - [x] Frontend: Create `checkout-dialog.tsx` and `checkin-dialog.tsx`
+  - [x] Frontend: Add KPI to `app-overview-page.tsx` (Skipped for Phase 2)
+- [x] Fase 1.3: Lifecycle Timeline
+  - [x] Backend: Add `GET /assets/{id}/timeline` endpoint
+  - [x] Frontend: Create `asset-timeline.tsx`
+  - [x] Frontend: Integrate timeline in `asset-detail-page.tsx`
