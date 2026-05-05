@@ -45,7 +45,11 @@ public class WebSessionService {
 		this.clock = clock;
 	}
 
-	@Transactional
+	@Transactional(noRollbackFor = {
+		com.assetdock.api.auth.application.InvalidCredentialsException.class,
+		com.assetdock.api.auth.application.InactiveUserAuthenticationException.class,
+		com.assetdock.api.auth.application.LockedUserAuthenticationException.class
+	})
 	public WebAuthenticatedSession create(LoginCommand command) {
 		AuthenticatedLogin authenticatedLogin = authenticationService.authenticateForWeb(command);
 		Instant now = authenticatedLogin.authenticatedAt();

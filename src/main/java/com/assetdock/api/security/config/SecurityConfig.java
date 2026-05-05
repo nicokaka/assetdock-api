@@ -77,7 +77,6 @@ public class SecurityConfig {
 
 	private String[] publicEndpoints() {
 		List<String> endpoints = new ArrayList<>();
-		endpoints.add("/actuator/health");
 		endpoints.add("/auth/login");
 		endpoints.add("/web/auth/login");
 		endpoints.add("/setup/**");

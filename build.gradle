@@ -52,3 +52,16 @@ tasks.named('test') {
 	systemProperty 'user.timezone', 'UTC'
 	environment 'DOCKER_API_VERSION', '1.41'
 }
+
+task validateEnv(type: Exec) {
+    // Only run this if bootRun is in the task graph
+    onlyIf { gradle.taskGraph.hasTask(":bootRun") }
+    
+    // We use powershell because the user is on Windows
+    commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/validate-env.ps1'
+}
+
+// Make sure validateEnv runs before bootRun
+tasks.named('bootRun') {
+    dependsOn validateEnv
+}
