@@ -114,7 +114,7 @@ public class UserManagementService {
 	@Transactional(readOnly = true)
 	public UserPageView listUsers(AuthenticatedUserPrincipal actor, Integer page, Integer size, String search, String status, String role) {
 		int actualPage = page != null && page > 0 ? page : 1;
-		int actualSize = size != null && size > 0 && size <= 1000 ? size : 20;
+		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
 		int offset = (actualPage - 1) * actualSize;
 
 		if (actor.isSuperAdmin()) {

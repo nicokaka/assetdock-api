@@ -294,6 +294,19 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
+	public Optional<Asset> findByIdAndOrganizationIdForUpdate(UUID assetId, UUID organizationId) {
+		return jdbcClient.sql(baseSelect() + """
+			WHERE a.id = :assetId
+			  AND a.organization_id = :organizationId
+			FOR UPDATE
+			""")
+			.param("assetId", assetId)
+			.param("organizationId", organizationId)
+			.query(this::mapAsset)
+			.optional();
+	}
+
+	@Override
 	public Optional<Asset> findById(UUID assetId) {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE a.id = :assetId

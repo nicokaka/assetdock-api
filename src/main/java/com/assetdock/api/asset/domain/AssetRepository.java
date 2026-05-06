@@ -20,6 +20,8 @@ public interface AssetRepository {
 
 	Optional<Asset> findByIdAndOrganizationId(UUID assetId, UUID organizationId);
 
+	Optional<Asset> findByIdAndOrganizationIdForUpdate(UUID assetId, UUID organizationId);
+
 	Optional<Asset> findById(UUID assetId);
 
 	Asset update(Asset asset);

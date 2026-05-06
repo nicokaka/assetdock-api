@@ -16,6 +16,7 @@ import com.assetdock.api.user.domain.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -29,21 +30,24 @@ public class CheckoutService {
     private final AssetRepository assetRepository;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
+    private final Clock clock;
 
     public CheckoutService(
         AssetCheckoutRepository checkoutRepository,
         AssetRepository assetRepository,
         AuditLogService auditLogService,
-        UserRepository userRepository
+        UserRepository userRepository,
+        Clock clock
     ) {
         this.checkoutRepository = checkoutRepository;
         this.assetRepository = assetRepository;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.clock = clock;
     }
 
     public CheckoutView checkout(AuthenticatedUserPrincipal principal, UUID assetId, CheckoutRequest request) {
-        Asset asset = assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
+        Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
             .orElseThrow(AssetNotFoundException::new);
 
         if (asset.status() != AssetStatus.IN_STOCK) {
@@ -57,7 +61,7 @@ public class CheckoutService {
             throw new InvalidCheckoutRequestException("User does not belong to your organization");
         }
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         AssetCheckout checkout = new AssetCheckout(
             UUID.randomUUID(),
@@ -112,7 +116,7 @@ public class CheckoutService {
     }
 
     public CheckoutView checkin(AuthenticatedUserPrincipal principal, UUID assetId, CheckinRequest request) {
-        Asset asset = assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
+        Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
             .orElseThrow(AssetNotFoundException::new);
 
         if (asset.status() != AssetStatus.ASSIGNED) {
@@ -126,7 +130,7 @@ public class CheckoutService {
             .findFirst()
             .orElseThrow(() -> new InvalidCheckoutRequestException("No active checkout found for this asset"));
 
-        Instant now = Instant.now();
+        Instant now = Instant.now(clock);
 
         AssetCheckout updatedCheckout = new AssetCheckout(
             activeCheckout.id(),

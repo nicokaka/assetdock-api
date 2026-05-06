@@ -73,7 +73,7 @@ security:
   auth:
     max-failed-login-attempts: ${AUTH_MAX_FAILED_LOGIN_ATTEMPTS:5}
   jwt:
-    secret: ${JWT_SECRET:}
+    secret: ${JWT_SECRET:this-is-a-local-dev-secret-only}
     issuer: ${JWT_ISSUER:assetdock-api}
     access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT15M}
   web-session:

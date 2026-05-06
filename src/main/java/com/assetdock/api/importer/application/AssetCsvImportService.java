@@ -69,7 +69,8 @@ public class AssetCsvImportService {
 		tenantAccessService.requireImportWriteAccess(actor, organizationId);
 
 		if (file == null || file.isEmpty()) {
-			recordImportFailureAttempt(organizationId, actor.userId(), sanitizeFileName(file == null ? null : file.getOriginalFilename()), "empty-file");
+			String safeFileName = sanitizeFileName(file == null ? null : file.getOriginalFilename());
+			recordImportFailureAttempt(organizationId, actor.userId(), safeFileName, "empty-file");
 			throw new InvalidAssetImportRequestException("empty-file", "A non-empty CSV file is required.");
 		}
 
@@ -429,9 +430,12 @@ public class AssetCsvImportService {
 
 	private String toRowReason(Exception exception) {
 		if (exception instanceof InvalidAssetImportRequestException
-			|| exception instanceof InvalidAssetRequestException
 			|| exception instanceof AssetAlreadyExistsException) {
 			return exception.getMessage();
+		}
+		
+		if (exception instanceof InvalidAssetRequestException) {
+			return "Invalid asset data."; // Sanitized from the audit report to prevent internal exposure
 		}
 
 		return "Row could not be processed.";
