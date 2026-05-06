@@ -106,7 +106,7 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
-	public List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search) {
+	public List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search, UUID categoryId, UUID locationId) {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE organization_id = :organizationId ");
 		
 		if (status != null && !status.isBlank()) {
@@ -115,6 +115,14 @@ public class JdbcAssetRepository implements AssetRepository {
 		
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+
+		if (categoryId != null) {
+			sql.append(" AND category_id = :categoryId ");
+		}
+
+		if (locationId != null) {
+			sql.append(" AND current_location_id = :locationId ");
 		}
 		
 		sql.append(" ORDER BY display_name, asset_tag LIMIT :limit OFFSET :offset");
@@ -132,11 +140,19 @@ public class JdbcAssetRepository implements AssetRepository {
 			statement = statement.param("search", "%" + search + "%");
 		}
 
+		if (categoryId != null) {
+			statement = statement.param("categoryId", categoryId);
+		}
+
+		if (locationId != null) {
+			statement = statement.param("locationId", locationId);
+		}
+
 		return statement.query(this::mapAsset).list();
 	}
 
 	@Override
-	public long countForOrganization(UUID organizationId, String status, String search) {
+	public long countForOrganization(UUID organizationId, String status, String search, UUID categoryId, UUID locationId) {
 		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM assets WHERE organization_id = :organizationId ");
 		
 		if (status != null && !status.isBlank()) {
@@ -145,6 +161,14 @@ public class JdbcAssetRepository implements AssetRepository {
 		
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+
+		if (categoryId != null) {
+			sql.append(" AND category_id = :categoryId ");
+		}
+
+		if (locationId != null) {
+			sql.append(" AND current_location_id = :locationId ");
 		}
 
 		var statement = jdbcClient.sql(sql.toString())
@@ -158,12 +182,20 @@ public class JdbcAssetRepository implements AssetRepository {
 			statement = statement.param("search", "%" + search + "%");
 		}
 
+		if (categoryId != null) {
+			statement = statement.param("categoryId", categoryId);
+		}
+
+		if (locationId != null) {
+			statement = statement.param("locationId", locationId);
+		}
+
 		Long count = statement.query(Long.class).single();
 		return count == null ? 0 : count;
 	}
 
 	@Override
-	public List<Asset> findAllPaginatedGlobally(int limit, int offset, String status, String search) {
+	public List<Asset> findAllPaginatedGlobally(int limit, int offset, String status, String search, UUID categoryId, UUID locationId) {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE 1=1 ");
 		
 		if (status != null && !status.isBlank()) {
@@ -172,6 +204,14 @@ public class JdbcAssetRepository implements AssetRepository {
 		
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+		}
+
+		if (categoryId != null) {
+			sql.append(" AND category_id = :categoryId ");
+		}
+
+		if (locationId != null) {
+			sql.append(" AND current_location_id = :locationId ");
 		}
 		
 		sql.append(" ORDER BY display_name, asset_tag LIMIT :limit OFFSET :offset");
@@ -188,11 +228,19 @@ public class JdbcAssetRepository implements AssetRepository {
 			statement = statement.param("search", "%" + search + "%");
 		}
 
+		if (categoryId != null) {
+			statement = statement.param("categoryId", categoryId);
+		}
+
+		if (locationId != null) {
+			statement = statement.param("locationId", locationId);
+		}
+
 		return statement.query(this::mapAsset).list();
 	}
 
 	@Override
-	public long countGlobally(String status, String search) {
+	public long countGlobally(String status, String search, UUID categoryId, UUID locationId) {
 		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM assets WHERE 1=1 ");
 		
 		if (status != null && !status.isBlank()) {
@@ -203,6 +251,14 @@ public class JdbcAssetRepository implements AssetRepository {
 			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
 		}
 
+		if (categoryId != null) {
+			sql.append(" AND category_id = :categoryId ");
+		}
+
+		if (locationId != null) {
+			sql.append(" AND current_location_id = :locationId ");
+		}
+
 		var statement = jdbcClient.sql(sql.toString());
 
 		if (status != null && !status.isBlank()) {
@@ -211,6 +267,14 @@ public class JdbcAssetRepository implements AssetRepository {
 		
 		if (search != null && !search.isBlank()) {
 			statement = statement.param("search", "%" + search + "%");
+		}
+
+		if (categoryId != null) {
+			statement = statement.param("categoryId", categoryId);
+		}
+
+		if (locationId != null) {
+			statement = statement.param("locationId", locationId);
 		}
 
 		Long count = statement.query(Long.class).single();

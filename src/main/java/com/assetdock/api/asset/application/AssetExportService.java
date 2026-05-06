@@ -43,7 +43,7 @@ public class AssetExportService {
 
 			do {
 				// We reuse paginated logic for the export chunking to avoid OOM
-				assets = assetRepository.findAllPaginated(organizationId, limit, offset, null, null);
+				assets = assetRepository.findAllPaginated(organizationId, limit, offset, null, null, null, null);
 				for (Asset asset : assets) {
 					printer.printRecord(
 						asset.assetTag(),

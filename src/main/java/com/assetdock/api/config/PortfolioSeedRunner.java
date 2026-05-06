@@ -98,7 +98,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 			LOGGER.warn("portfolio_seed status=skipped reason=no_organization_found");
 			return;
 		}
-		var existingAssets = assetRepository.findAllPaginated(orgId, 1, 0, null, null);
+		var existingAssets = assetRepository.findAllPaginated(orgId, 1, 0, null, null, null, null);
 		if (!existingAssets.isEmpty()) {
 			LOGGER.info("portfolio_seed status=skipped reason=assets_already_exist org_id={}", orgId);
 			return;

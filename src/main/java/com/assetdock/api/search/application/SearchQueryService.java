@@ -43,7 +43,7 @@ public class SearchQueryService {
 			return new GlobalSearchResult(List.of(), List.of());
 		}
 
-		List<Asset> assets = assetRepository.findAllPaginated(orgId, limit, 0, null, sanitizedQuery);
+		List<Asset> assets = assetRepository.findAllPaginated(orgId, limit, 0, null, sanitizedQuery, null, null);
 		
 		boolean canReadUsers = false;
 		try {

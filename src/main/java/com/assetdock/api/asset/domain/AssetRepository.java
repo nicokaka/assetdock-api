@@ -11,11 +11,11 @@ public interface AssetRepository {
 
 	Asset save(Asset asset);
 
-	List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search);
-	long countForOrganization(UUID organizationId, String status, String search);
+	List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search, UUID categoryId, UUID locationId);
+	long countForOrganization(UUID organizationId, String status, String search, UUID categoryId, UUID locationId);
 
-	List<Asset> findAllPaginatedGlobally(int limit, int offset, String status, String search);
-	long countGlobally(String status, String search);
+	List<Asset> findAllPaginatedGlobally(int limit, int offset, String status, String search, UUID categoryId, UUID locationId);
+	long countGlobally(String status, String search, UUID categoryId, UUID locationId);
 
 
 	Optional<Asset> findByIdAndOrganizationId(UUID assetId, UUID organizationId);

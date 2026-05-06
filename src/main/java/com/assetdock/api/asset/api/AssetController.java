@@ -76,9 +76,11 @@ public class AssetController {
 		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer page,
 		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer size,
 		@org.springframework.web.bind.annotation.RequestParam(required = false) String status,
-		@org.springframework.web.bind.annotation.RequestParam(required = false) String search
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String search,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) UUID categoryId,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) UUID locationId
 	) {
-		return assetManagementService.list(principal, page, size, status, search);
+		return assetManagementService.list(principal, page, size, status, search, categoryId, locationId);
 	}
 
 	@GetMapping("/{id}")
