@@ -186,6 +186,7 @@ public class AssetAssignmentManagementService {
 			asset.manufacturerId(),
 			locationId != null ? locationId : asset.currentLocationId(),
 			userId,
+			asset.currentAssignedUserName(), // ou null, userId é command.userId()
 			AssetStatus.ASSIGNED,
 			asset.purchaseDate(),
 			asset.warrantyExpiryDate(),
@@ -207,6 +208,7 @@ public class AssetAssignmentManagementService {
 			asset.categoryId(),
 			asset.manufacturerId(),
 			asset.currentLocationId(),
+			null,
 			null,
 			asset.status() == AssetStatus.ASSIGNED ? AssetStatus.IN_STOCK : asset.status(),
 			asset.purchaseDate(),

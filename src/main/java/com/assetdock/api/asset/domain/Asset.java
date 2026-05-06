@@ -16,6 +16,7 @@ public record Asset(
 	UUID manufacturerId,
 	UUID currentLocationId,
 	UUID currentAssignedUserId,
+	String currentAssignedUserName,
 	AssetStatus status,
 	LocalDate purchaseDate,
 	LocalDate warrantyExpiryDate,

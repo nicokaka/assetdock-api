@@ -216,7 +216,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 		return assetRepository.save(new Asset(
 			UUID.randomUUID(), orgId, tag, serial, hostname,
 			displayName, description,
-			categoryId, manufacturerId, locationId, assignedUserId,
+			categoryId, manufacturerId, locationId, assignedUserId, null,
 			status, purchaseDate, null, null, createdAt, createdAt
 		));
 	}

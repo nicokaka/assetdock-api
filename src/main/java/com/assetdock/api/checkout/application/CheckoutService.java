@@ -88,6 +88,7 @@ public class CheckoutService {
             asset.manufacturerId(),
             asset.currentLocationId(),
             request.userId(),
+            null, // currentAssignedUserName
             AssetStatus.ASSIGNED,
             asset.purchaseDate(),
             asset.warrantyExpiryDate(),
@@ -157,6 +158,7 @@ public class CheckoutService {
             asset.categoryId(),
             asset.manufacturerId(),
             asset.currentLocationId(),
+            null,
             null,
             AssetStatus.IN_STOCK,
             asset.purchaseDate(),

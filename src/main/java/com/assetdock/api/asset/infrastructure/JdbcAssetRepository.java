@@ -107,25 +107,25 @@ public class JdbcAssetRepository implements AssetRepository {
 
 	@Override
 	public List<Asset> findAllPaginated(UUID organizationId, int limit, int offset, String status, String search, UUID categoryId, UUID locationId) {
-		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE organization_id = :organizationId ");
+		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE a.organization_id = :organizationId ");
 		
 		if (status != null && !status.isBlank()) {
-			sql.append(" AND status = CAST(:status AS asset_status) ");
+			sql.append(" AND a.status = CAST(:status AS asset_status) ");
 		}
 		
 		if (search != null && !search.isBlank()) {
-			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+			sql.append(" AND (a.asset_tag ILIKE :search OR a.display_name ILIKE :search OR a.serial_number ILIKE :search OR a.hostname ILIKE :search) ");
 		}
 
 		if (categoryId != null) {
-			sql.append(" AND category_id = :categoryId ");
+			sql.append(" AND a.category_id = :categoryId ");
 		}
 
 		if (locationId != null) {
-			sql.append(" AND current_location_id = :locationId ");
+			sql.append(" AND a.current_location_id = :locationId ");
 		}
 		
-		sql.append(" ORDER BY display_name, asset_tag LIMIT :limit OFFSET :offset");
+		sql.append(" ORDER BY a.display_name, a.asset_tag LIMIT :limit OFFSET :offset");
 
 		var statement = jdbcClient.sql(sql.toString())
 			.param("organizationId", organizationId)
@@ -199,22 +199,22 @@ public class JdbcAssetRepository implements AssetRepository {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE 1=1 ");
 		
 		if (status != null && !status.isBlank()) {
-			sql.append(" AND status = CAST(:status AS asset_status) ");
+			sql.append(" AND a.status = CAST(:status AS asset_status) ");
 		}
 		
 		if (search != null && !search.isBlank()) {
-			sql.append(" AND (asset_tag ILIKE :search OR display_name ILIKE :search OR serial_number ILIKE :search OR hostname ILIKE :search) ");
+			sql.append(" AND (a.asset_tag ILIKE :search OR a.display_name ILIKE :search OR a.serial_number ILIKE :search OR a.hostname ILIKE :search) ");
 		}
 
 		if (categoryId != null) {
-			sql.append(" AND category_id = :categoryId ");
+			sql.append(" AND a.category_id = :categoryId ");
 		}
 
 		if (locationId != null) {
-			sql.append(" AND current_location_id = :locationId ");
+			sql.append(" AND a.current_location_id = :locationId ");
 		}
 		
-		sql.append(" ORDER BY display_name, asset_tag LIMIT :limit OFFSET :offset");
+		sql.append(" ORDER BY a.display_name, a.asset_tag LIMIT :limit OFFSET :offset");
 
 		var statement = jdbcClient.sql(sql.toString())
 			.param("limit", limit)
@@ -284,8 +284,8 @@ public class JdbcAssetRepository implements AssetRepository {
 	@Override
 	public Optional<Asset> findByIdAndOrganizationId(UUID assetId, UUID organizationId) {
 		return jdbcClient.sql(baseSelect() + """
-			WHERE id = :assetId
-			  AND organization_id = :organizationId
+			WHERE a.id = :assetId
+			  AND a.organization_id = :organizationId
 			""")
 			.param("assetId", assetId)
 			.param("organizationId", organizationId)
@@ -296,7 +296,7 @@ public class JdbcAssetRepository implements AssetRepository {
 	@Override
 	public Optional<Asset> findById(UUID assetId) {
 		return jdbcClient.sql(baseSelect() + """
-			WHERE id = :assetId
+			WHERE a.id = :assetId
 			""")
 			.param("assetId", assetId)
 			.query(this::mapAsset)
@@ -384,10 +384,12 @@ public class JdbcAssetRepository implements AssetRepository {
 
 	private String baseSelect() {
 		return """
-			SELECT id, organization_id, asset_tag, serial_number, hostname, display_name, description,
-			       category_id, manufacturer_id, current_location_id, current_assigned_user_id, status,
-			       purchase_date, warranty_expiry_date, archived_at, created_at, updated_at
-			FROM assets
+			SELECT a.id, a.organization_id, a.asset_tag, a.serial_number, a.hostname, a.display_name, a.description,
+			       a.category_id, a.manufacturer_id, a.current_location_id, a.current_assigned_user_id, a.status,
+			       a.purchase_date, a.warranty_expiry_date, a.archived_at, a.created_at, a.updated_at,
+			       u.full_name AS current_assigned_user_name
+			FROM assets a
+			LEFT JOIN users u ON a.current_assigned_user_id = u.id
 			""";
 	}
 
@@ -404,6 +406,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			resultSet.getObject("manufacturer_id", UUID.class),
 			resultSet.getObject("current_location_id", UUID.class),
 			resultSet.getObject("current_assigned_user_id", UUID.class),
+			resultSet.getString("current_assigned_user_name"),
 			AssetStatus.valueOf(resultSet.getString("status")),
 			resultSet.getObject("purchase_date", LocalDate.class),
 			resultSet.getObject("warranty_expiry_date", LocalDate.class),
