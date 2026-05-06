@@ -59,7 +59,23 @@ tasks.named('test') {
 	systemProperty 'user.timezone', 'UTC'
 	environment 'DOCKER_API_VERSION', '1.41'
 	environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+	exclude '**/*IntegrationTest.class'
+	exclude '**/*ApplicationTests.class'
 }
+
+task integrationTest(type: Test) {
+	useJUnitPlatform()
+	systemProperty 'user.timezone', 'UTC'
+	environment 'DOCKER_API_VERSION', '1.41'
+	environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	include '**/*IntegrationTest.class'
+	include '**/*ApplicationTests.class'
+	shouldRunAfter test
+}
+
+check.dependsOn integrationTest
 
 task validateEnv(type: Exec) {
     // Only run this if bootRun is in the task graph
