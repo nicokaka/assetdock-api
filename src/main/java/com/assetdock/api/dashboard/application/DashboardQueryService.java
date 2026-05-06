@@ -2,9 +2,11 @@ package com.assetdock.api.dashboard.application;
 
 import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.asset.domain.AssetStatus;
+import com.assetdock.api.checkout.domain.AssetCheckoutRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.domain.UserRepository;
 import java.util.Map;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,14 +14,20 @@ public class DashboardQueryService {
 
 	private final AssetRepository assetRepository;
 	private final UserRepository userRepository;
+	private final AssetCheckoutRepository checkoutRepository;
 
-	public DashboardQueryService(AssetRepository assetRepository, UserRepository userRepository) {
+	public DashboardQueryService(
+			AssetRepository assetRepository,
+			UserRepository userRepository,
+			AssetCheckoutRepository checkoutRepository) {
 		this.assetRepository = assetRepository;
 		this.userRepository = userRepository;
+		this.checkoutRepository = checkoutRepository;
 	}
 
 	public DashboardStatsView getStats(AuthenticatedUserPrincipal principal) {
-		Map<AssetStatus, Integer> assetCounts = assetRepository.countByStatusForOrganization(principal.organizationId());
+		UUID orgId = principal.organizationId();
+		Map<AssetStatus, Integer> assetCounts = assetRepository.countByStatusForOrganization(orgId);
 		
 		int totalAssets = assetCounts.values().stream().mapToInt(Integer::intValue).sum();
 		int assignedAssets = assetCounts.getOrDefault(AssetStatus.ASSIGNED, 0);
@@ -28,8 +36,9 @@ public class DashboardQueryService {
 		int retiredAssets = assetCounts.getOrDefault(AssetStatus.RETIRED, 0);
 		int lostAssets = assetCounts.getOrDefault(AssetStatus.LOST, 0);
 		
-		int totalUsers = userRepository.countTotalUsersForOrganization(principal.organizationId());
-		int activeUsers = userRepository.countActiveUsersForOrganization(principal.organizationId());
+		int totalUsers = userRepository.countTotalUsersForOrganization(orgId);
+		int activeUsers = userRepository.countActiveUsersForOrganization(orgId);
+		int activeCheckouts = orgId != null ? checkoutRepository.countActiveCheckoutsForOrganization(orgId) : 0;
 		
 		return new DashboardStatsView(
 			totalAssets,
@@ -39,7 +48,8 @@ public class DashboardQueryService {
 			retiredAssets,
 			lostAssets,
 			totalUsers,
-			activeUsers
+			activeUsers,
+			activeCheckouts
 		);
 	}
 }

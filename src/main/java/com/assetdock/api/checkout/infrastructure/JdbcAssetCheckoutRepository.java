@@ -109,6 +109,19 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
             .list();
     }
 
+    @Override
+    public int countActiveCheckoutsForOrganization(UUID organizationId) {
+        Integer count = jdbcClient.sql("""
+            SELECT COUNT(*) FROM asset_checkouts
+            WHERE organization_id = :organizationId
+              AND checked_in_at IS NULL
+            """)
+            .param("organizationId", organizationId)
+            .query(Integer.class)
+            .single();
+        return count != null ? count : 0;
+    }
+
     private AssetCheckout mapRow(ResultSet rs, int rowNum) throws SQLException {
         return new AssetCheckout(
             rs.getObject("id", UUID.class),

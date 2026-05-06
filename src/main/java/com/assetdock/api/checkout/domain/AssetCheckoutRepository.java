@@ -12,4 +12,6 @@ public interface AssetCheckoutRepository {
     List<AssetCheckout> findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID assetId, UUID organizationId);
 
     List<AssetCheckout> findByUserIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID userId, UUID organizationId);
+
+    int countActiveCheckoutsForOrganization(UUID organizationId);
 }

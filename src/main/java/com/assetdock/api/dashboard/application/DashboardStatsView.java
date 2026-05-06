@@ -8,6 +8,8 @@ public record DashboardStatsView(
     int retiredAssets,
     int lostAssets,
     int totalUsers,
-    int activeUsers
+    int activeUsers,
+    int activeCheckouts
 ) {
 }
+
