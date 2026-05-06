@@ -58,14 +58,18 @@ tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'user.timezone', 'UTC'
 	environment 'DOCKER_API_VERSION', '1.41'
+	environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
 }
 
 task validateEnv(type: Exec) {
     // Only run this if bootRun is in the task graph
     onlyIf { gradle.taskGraph.hasTask(":bootRun") }
     
-    // We use powershell because the user is on Windows
-    commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/validate-env.ps1'
+    if (System.getProperty('os.name').toLowerCase().contains('win')) {
+        commandLine 'powershell', '-ExecutionPolicy', 'Bypass', '-File', 'scripts/validate-env.ps1'
+    } else {
+        commandLine 'bash', '-c', 'echo "Skipping validate-env (non-Windows)"'
+    }
 }
 
 // Make sure validateEnv runs before bootRun

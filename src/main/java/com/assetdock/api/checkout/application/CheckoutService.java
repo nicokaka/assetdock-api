@@ -12,6 +12,7 @@ import com.assetdock.api.checkout.domain.AssetCheckout;
 import com.assetdock.api.checkout.domain.AssetCheckoutRepository;
 import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.user.domain.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,15 +28,18 @@ public class CheckoutService {
     private final AssetCheckoutRepository checkoutRepository;
     private final AssetRepository assetRepository;
     private final AuditLogService auditLogService;
+    private final UserRepository userRepository;
 
     public CheckoutService(
         AssetCheckoutRepository checkoutRepository,
         AssetRepository assetRepository,
-        AuditLogService auditLogService
+        AuditLogService auditLogService,
+        UserRepository userRepository
     ) {
         this.checkoutRepository = checkoutRepository;
         this.assetRepository = assetRepository;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
     }
 
     public CheckoutView checkout(AuthenticatedUserPrincipal principal, UUID assetId, CheckoutRequest request) {
@@ -44,6 +48,13 @@ public class CheckoutService {
 
         if (asset.status() != AssetStatus.IN_STOCK) {
             throw new InvalidCheckoutRequestException("Asset must be IN_STOCK to be checked out");
+        }
+
+        var assignedUser = userRepository.findById(request.userId())
+            .orElseThrow(() -> new InvalidCheckoutRequestException("User not found"));
+            
+        if (assignedUser.organizationId() == null || !assignedUser.organizationId().equals(principal.organizationId())) {
+            throw new InvalidCheckoutRequestException("User does not belong to your organization");
         }
 
         Instant now = Instant.now();
@@ -107,7 +118,7 @@ public class CheckoutService {
             throw new InvalidCheckoutRequestException("Asset must be ASSIGNED to be checked in");
         }
 
-        List<AssetCheckout> checkouts = checkoutRepository.findByAssetIdOrderByCheckedOutAtDesc(assetId);
+        List<AssetCheckout> checkouts = checkoutRepository.findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(assetId, principal.organizationId());
         
         AssetCheckout activeCheckout = checkouts.stream()
             .filter(c -> c.checkedInAt() == null)
@@ -126,11 +137,13 @@ public class CheckoutService {
             now,
             activeCheckout.checkedOutBy(),
             principal.userId(),
-            request.notes() != null ? activeCheckout.notes() + "\nCheckin notes: " + request.notes() : activeCheckout.notes(),
+            request.notes() != null
+                ? (activeCheckout.notes() != null ? activeCheckout.notes() + "\n" : "") + "Checkin notes: " + request.notes()
+                : activeCheckout.notes(),
             activeCheckout.createdAt()
         );
 
-        checkoutRepository.save(updatedCheckout);
+        checkoutRepository.update(updatedCheckout);
 
         // Update asset status
         Asset updatedAsset = new Asset(
@@ -169,10 +182,11 @@ public class CheckoutService {
 
     public List<CheckoutView> getHistoryByAssetId(AuthenticatedUserPrincipal principal, UUID assetId) {
         // Verify access to asset
-        assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
+        Asset asset = assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
             .orElseThrow(AssetNotFoundException::new);
 
-        return checkoutRepository.findByAssetIdOrderByCheckedOutAtDesc(assetId).stream()
+        return checkoutRepository.findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(assetId, principal.organizationId())
+            .stream()
             .map(this::mapToView)
             .collect(Collectors.toList());
     }

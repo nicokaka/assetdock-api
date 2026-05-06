@@ -7,6 +7,8 @@ import com.assetdock.api.asset.application.CreateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetCommand;
 import com.assetdock.api.asset.application.UpdateAssetStatusCommand;
 import com.assetdock.api.asset.application.TimelineEventView;
+import com.assetdock.api.asset.application.AssetLabelService;
+import com.assetdock.api.asset.application.AssetTimelineService;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -30,13 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AssetController {
 
 	private final AssetManagementService assetManagementService;
-	private final com.assetdock.api.asset.application.AssetLabelService assetLabelService;
-	private final com.assetdock.api.asset.application.AssetTimelineService assetTimelineService;
+	private final AssetLabelService assetLabelService;
+	private final AssetTimelineService assetTimelineService;
 
 	public AssetController(
 		AssetManagementService assetManagementService,
-		com.assetdock.api.asset.application.AssetLabelService assetLabelService,
-		com.assetdock.api.asset.application.AssetTimelineService assetTimelineService
+		AssetLabelService assetLabelService,
+		AssetTimelineService assetTimelineService
 	) {
 		this.assetManagementService = assetManagementService;
 		this.assetLabelService = assetLabelService;
@@ -155,7 +157,7 @@ public class AssetController {
 		
 		return org.springframework.http.ResponseEntity.ok()
 			.contentType(org.springframework.http.MediaType.APPLICATION_PDF)
-			.header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"label-" + asset.assetTag() + ".pdf\"")
+			.header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"label-" + asset.assetTag().replaceAll("[\"\\r\\n]", "_") + ".pdf\"")
 			.body(pdf);
 	}
 

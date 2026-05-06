@@ -84,25 +84,27 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
     }
 
     @Override
-    public List<AssetCheckout> findByAssetIdOrderByCheckedOutAtDesc(UUID assetId) {
+    public List<AssetCheckout> findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID assetId, UUID organizationId) {
         return jdbcClient.sql("""
             SELECT * FROM asset_checkouts 
-            WHERE asset_id = :assetId 
+            WHERE asset_id = :assetId AND organization_id = :organizationId
             ORDER BY checked_out_at DESC
             """)
             .param("assetId", assetId)
+            .param("organizationId", organizationId)
             .query(this::mapRow)
             .list();
     }
 
     @Override
-    public List<AssetCheckout> findByUserIdOrderByCheckedOutAtDesc(UUID userId) {
+    public List<AssetCheckout> findByUserIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID userId, UUID organizationId) {
         return jdbcClient.sql("""
             SELECT * FROM asset_checkouts 
-            WHERE user_id = :userId 
+            WHERE user_id = :userId AND organization_id = :organizationId
             ORDER BY checked_out_at DESC
             """)
             .param("userId", userId)
+            .param("organizationId", organizationId)
             .query(this::mapRow)
             .list();
     }

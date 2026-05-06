@@ -9,7 +9,7 @@ public interface AssetCheckoutRepository {
     
     AssetCheckout update(AssetCheckout checkout);
 
-    List<AssetCheckout> findByAssetIdOrderByCheckedOutAtDesc(UUID assetId);
+    List<AssetCheckout> findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID assetId, UUID organizationId);
 
-    List<AssetCheckout> findByUserIdOrderByCheckedOutAtDesc(UUID userId);
+    List<AssetCheckout> findByUserIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID userId, UUID organizationId);
 }
