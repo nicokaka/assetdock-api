@@ -57,9 +57,11 @@ public class UserController {
 		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
 		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer page,
 		@org.springframework.web.bind.annotation.RequestParam(required = false) Integer size,
-		@org.springframework.web.bind.annotation.RequestParam(required = false) String search
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String search,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String status,
+		@org.springframework.web.bind.annotation.RequestParam(required = false) String role
 	) {
-		return userManagementService.listUsers(principal, page, size, search);
+		return userManagementService.listUsers(principal, page, size, search, status, role);
 	}
 
 	@GetMapping("/{id}")

@@ -104,7 +104,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 			return;
 		}
 
-		var admin = userRepository.findAllPaginated(orgId, 1, 0, null).stream().findFirst().orElse(null);
+		var admin = userRepository.findAllPaginated(orgId, 1, 0, null, null, null).stream().findFirst().orElse(null);
 		if (admin == null) {
 			LOGGER.warn("portfolio_seed status=skipped reason=no_admin_user_found org_id={}", orgId);
 			return;

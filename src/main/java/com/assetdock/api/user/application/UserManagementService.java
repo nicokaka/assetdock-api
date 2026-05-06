@@ -112,18 +112,18 @@ public class UserManagementService {
 	}
 
 	@Transactional(readOnly = true)
-	public UserPageView listUsers(AuthenticatedUserPrincipal actor, Integer page, Integer size, String search) {
+	public UserPageView listUsers(AuthenticatedUserPrincipal actor, Integer page, Integer size, String search, String status, String role) {
 		int actualPage = page != null && page > 0 ? page : 1;
 		int actualSize = size != null && size > 0 && size <= 1000 ? size : 20;
 		int offset = (actualPage - 1) * actualSize;
 
 		if (actor.isSuperAdmin()) {
-			List<UserView> items = userRepository.findAllPaginatedGlobally(actualSize, offset, search)
+			List<UserView> items = userRepository.findAllPaginatedGlobally(actualSize, offset, search, status, role)
 				.stream()
 				.map(user -> toView(user, actor))
 				.toList();
 			
-			long totalItems = userRepository.countGlobally(search);
+			long totalItems = userRepository.countGlobally(search, status, role);
 			int totalPages = (int) Math.ceil((double) totalItems / actualSize);
 			
 			return new UserPageView(items, actualPage, actualSize, totalItems, totalPages);
@@ -132,12 +132,12 @@ public class UserManagementService {
 		UUID actorOrganizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireUserReadAccess(actor, actorOrganizationId);
 
-		List<UserView> items = userRepository.findAllPaginated(actorOrganizationId, actualSize, offset, search)
+		List<UserView> items = userRepository.findAllPaginated(actorOrganizationId, actualSize, offset, search, status, role)
 			.stream()
 			.map(user -> toView(user, actor))
 			.toList();
 
-		long totalItems = userRepository.countForOrganization(actorOrganizationId, search);
+		long totalItems = userRepository.countForOrganization(actorOrganizationId, search, status, role);
 		int totalPages = (int) Math.ceil((double) totalItems / actualSize);
 
 		return new UserPageView(items, actualPage, actualSize, totalItems, totalPages);

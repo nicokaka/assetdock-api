@@ -53,7 +53,7 @@ public class SearchQueryService {
 		}
 
 		List<User> users = canReadUsers 
-			? userRepository.findAllPaginated(orgId, limit, 0, sanitizedQuery) 
+			? userRepository.findAllPaginated(orgId, limit, 0, sanitizedQuery, null, null) 
 			: List.of();
 
 		return new GlobalSearchResult(

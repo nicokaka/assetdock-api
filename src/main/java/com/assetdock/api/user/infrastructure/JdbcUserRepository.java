@@ -66,11 +66,19 @@ public class JdbcUserRepository implements UserRepository {
 	}
 
 	@Override
-	public List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search) {
+	public List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search, String status, String role) {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE organization_id = :organizationId ");
 
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS user_status) ");
+		}
+
+		if (role != null && !role.isBlank()) {
+			sql.append(" AND EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = users.id AND ur.role = CAST(:role AS user_role)) ");
 		}
 
 		sql.append(" ORDER BY full_name, email LIMIT :limit OFFSET :offset");
@@ -84,16 +92,32 @@ public class JdbcUserRepository implements UserRepository {
 			statement = statement.param("search", "%" + search + "%");
 		}
 
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+
+		if (role != null && !role.isBlank()) {
+			statement = statement.param("role", role);
+		}
+
 		List<UserSnapshot> snapshots = statement.query(this::mapUserSnapshot).list();
 		return buildUsersWithRoles(snapshots);
 	}
 
 	@Override
-	public long countForOrganization(UUID organizationId, String search) {
+	public long countForOrganization(UUID organizationId, String search, String status, String role) {
 		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE organization_id = :organizationId ");
 
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS user_status) ");
+		}
+
+		if (role != null && !role.isBlank()) {
+			sql.append(" AND EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = users.id AND ur.role = CAST(:role AS user_role)) ");
 		}
 
 		var statement = jdbcClient.sql(sql.toString())
@@ -103,16 +127,32 @@ public class JdbcUserRepository implements UserRepository {
 			statement = statement.param("search", "%" + search + "%");
 		}
 
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+
+		if (role != null && !role.isBlank()) {
+			statement = statement.param("role", role);
+		}
+
 		Long count = statement.query(Long.class).single();
 		return count == null ? 0 : count;
 	}
 
 	@Override
-	public List<User> findAllPaginatedGlobally(int limit, int offset, String search) {
+	public List<User> findAllPaginatedGlobally(int limit, int offset, String search, String status, String role) {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE 1=1 ");
 
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
+		}
+
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS user_status) ");
+		}
+
+		if (role != null && !role.isBlank()) {
+			sql.append(" AND EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = users.id AND ur.role = CAST(:role AS user_role)) ");
 		}
 
 		sql.append(" ORDER BY full_name, email LIMIT :limit OFFSET :offset");
@@ -125,22 +165,46 @@ public class JdbcUserRepository implements UserRepository {
 			statement = statement.param("search", "%" + search + "%");
 		}
 
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+
+		if (role != null && !role.isBlank()) {
+			statement = statement.param("role", role);
+		}
+
 		List<UserSnapshot> snapshots = statement.query(this::mapUserSnapshot).list();
 		return buildUsersWithRoles(snapshots);
 	}
 
 	@Override
-	public long countGlobally(String search) {
+	public long countGlobally(String search, String status, String role) {
 		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM users WHERE 1=1 ");
 
 		if (search != null && !search.isBlank()) {
 			sql.append(" AND (full_name ILIKE :search OR email ILIKE :search) ");
 		}
 
+		if (status != null && !status.isBlank()) {
+			sql.append(" AND status = CAST(:status AS user_status) ");
+		}
+
+		if (role != null && !role.isBlank()) {
+			sql.append(" AND EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = users.id AND ur.role = CAST(:role AS user_role)) ");
+		}
+
 		var statement = jdbcClient.sql(sql.toString());
 
 		if (search != null && !search.isBlank()) {
 			statement = statement.param("search", "%" + search + "%");
+		}
+
+		if (status != null && !status.isBlank()) {
+			statement = statement.param("status", status);
+		}
+
+		if (role != null && !role.isBlank()) {
+			statement = statement.param("role", role);
 		}
 
 		Long count = statement.query(Long.class).single();

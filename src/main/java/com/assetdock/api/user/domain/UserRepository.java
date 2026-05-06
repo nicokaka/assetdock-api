@@ -14,13 +14,13 @@ public interface UserRepository {
 
 	List<User> findAll(int limit);
 
-	List<User> findAllPaginatedGlobally(int limit, int offset, String search);
+	List<User> findAllPaginatedGlobally(int limit, int offset, String search, String status, String role);
 
-	long countGlobally(String search);
+	long countGlobally(String search, String status, String role);
 
-	List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search);
+	List<User> findAllPaginated(UUID organizationId, int limit, int offset, String search, String status, String role);
 
-	long countForOrganization(UUID organizationId, String search);
+	long countForOrganization(UUID organizationId, String search, String status, String role);
 
 	boolean existsByEmail(String normalizedEmail);
 
