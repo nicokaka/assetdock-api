@@ -4,15 +4,20 @@ All notable changes to this project are documented here.
 
 The format is intentionally lightweight and release-oriented for this portfolio project.
 
-## [1.1.0] - 2026-04-15
+## [1.1.0] - 2026-05-07
 
 ### Added
-- Web Session Authentication architecture with robust Anti-CSRF protection
+- Asset Checkout and Timeline system (Phase 1)
+- Active Checkouts KPI on dashboard
+- Category, location, status, and role filters for Assets and Users lists
+- Admin password reset and emergency CLI tool
+- Production hardening (Pessimistic locking, secure cookies enforcement, debouncing)
+- Route Error Boundaries and robust session handoff on frontend
 - Self-Hosted Deployment configuration (`docker-compose.selfhosted.yml` and `SELFHOSTED.md`)
-- `PortfolioSeedRunner` for consistent local and production demo data seeding
 
 ### Fixed
 - Stabilized API contracts and generic error handling bypasses.
+- Resolved all critical production audit findings (connection errors, routing, cache invalidation, UI bugs).
 
 ## [1.0.0] - 2026-03-29
 
