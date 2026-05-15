@@ -63,8 +63,8 @@ app:
 info:
   app:
     name: ${spring.application.name}
-    description: Multi-tenant asset inventory API scaffold
-    version: ${APP_VERSION:0.1.0-SNAPSHOT}
+    description: Multi-tenant asset inventory management API
+    version: ${APP_VERSION:1.1.0}
 logging:
   level:
     root: INFO

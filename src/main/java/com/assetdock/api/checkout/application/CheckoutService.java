@@ -1,5 +1,6 @@
 package com.assetdock.api.checkout.application;
 
+import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.asset.domain.Asset;
 import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.asset.domain.AssetStatus;
@@ -10,8 +11,8 @@ import com.assetdock.api.checkout.api.CheckinRequest;
 import com.assetdock.api.checkout.api.CheckoutRequest;
 import com.assetdock.api.checkout.domain.AssetCheckout;
 import com.assetdock.api.checkout.domain.AssetCheckoutRepository;
-import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
+import com.assetdock.api.security.auth.TenantAccessService;
 import com.assetdock.api.user.domain.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -30,6 +31,7 @@ public class CheckoutService {
     private final AssetRepository assetRepository;
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
+    private final TenantAccessService tenantAccessService;
     private final Clock clock;
 
     public CheckoutService(
@@ -37,16 +39,21 @@ public class CheckoutService {
         AssetRepository assetRepository,
         AuditLogService auditLogService,
         UserRepository userRepository,
+        TenantAccessService tenantAccessService,
         Clock clock
     ) {
         this.checkoutRepository = checkoutRepository;
         this.assetRepository = assetRepository;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
+        this.tenantAccessService = tenantAccessService;
         this.clock = clock;
     }
 
     public CheckoutView checkout(AuthenticatedUserPrincipal principal, UUID assetId, CheckoutRequest request) {
+        // C-1: RBAC — only ORG_ADMIN and ASSET_MANAGER may perform checkouts.
+        tenantAccessService.requireAssignmentWriteAccess(principal, principal.organizationId());
+
         Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
             .orElseThrow(AssetNotFoundException::new);
 
@@ -56,7 +63,7 @@ public class CheckoutService {
 
         var assignedUser = userRepository.findById(request.userId())
             .orElseThrow(() -> new InvalidCheckoutRequestException("User not found"));
-            
+
         if (assignedUser.organizationId() == null || !assignedUser.organizationId().equals(principal.organizationId())) {
             throw new InvalidCheckoutRequestException("User does not belong to your organization");
         }
@@ -79,28 +86,10 @@ public class CheckoutService {
 
         checkout = checkoutRepository.save(checkout);
 
-        // Update asset status
-        Asset updatedAsset = new Asset(
-            asset.id(),
-            asset.organizationId(),
-            asset.assetTag(),
-            asset.serialNumber(),
-            asset.hostname(),
-            asset.displayName(),
-            asset.description(),
-            asset.categoryId(),
-            asset.manufacturerId(),
-            asset.currentLocationId(),
-            request.userId(),
-            null, // currentAssignedUserName
-            AssetStatus.ASSIGNED,
-            asset.purchaseDate(),
-            asset.warrantyExpiryDate(),
-            asset.archivedAt(),
-            asset.createdAt(),
-            now
+        // H-1: Dedicated status update — avoids reconstructing the full Asset record.
+        assetRepository.updateStatusAndAssignedUser(
+            asset.id(), asset.organizationId(), AssetStatus.ASSIGNED, request.userId(), now
         );
-        assetRepository.update(updatedAsset);
 
         auditLogService.record(new AuditLogCommand(
             principal.organizationId(),
@@ -109,13 +98,16 @@ public class CheckoutService {
             "ASSET",
             asset.id(),
             "SUCCESS",
-            java.util.Map.of("assignedTo", request.userId())
+            Map.of("assignedTo", request.userId())
         ));
 
         return mapToView(checkout);
     }
 
     public CheckoutView checkin(AuthenticatedUserPrincipal principal, UUID assetId, CheckinRequest request) {
+        // C-1: RBAC — only ORG_ADMIN and ASSET_MANAGER may perform checkins.
+        tenantAccessService.requireAssignmentWriteAccess(principal, principal.organizationId());
+
         Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
             .orElseThrow(AssetNotFoundException::new);
 
@@ -123,14 +115,16 @@ public class CheckoutService {
             throw new InvalidCheckoutRequestException("Asset must be ASSIGNED to be checked in");
         }
 
-        List<AssetCheckout> checkouts = checkoutRepository.findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(assetId, principal.organizationId());
-        
-        AssetCheckout activeCheckout = checkouts.stream()
-            .filter(c -> c.checkedInAt() == null)
-            .findFirst()
+        // C-2: Acquire a row-level lock on the active checkout record to prevent double-checkin.
+        AssetCheckout activeCheckout = checkoutRepository
+            .findActiveByAssetIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
             .orElseThrow(() -> new InvalidCheckoutRequestException("No active checkout found for this asset"));
 
         Instant now = Instant.now(clock);
+
+        String mergedNotes = request.notes() != null
+            ? (activeCheckout.notes() != null ? activeCheckout.notes() + "\n" : "") + "Checkin notes: " + request.notes()
+            : activeCheckout.notes();
 
         AssetCheckout updatedCheckout = new AssetCheckout(
             activeCheckout.id(),
@@ -142,36 +136,16 @@ public class CheckoutService {
             now,
             activeCheckout.checkedOutBy(),
             principal.userId(),
-            request.notes() != null
-                ? (activeCheckout.notes() != null ? activeCheckout.notes() + "\n" : "") + "Checkin notes: " + request.notes()
-                : activeCheckout.notes(),
+            mergedNotes,
             activeCheckout.createdAt()
         );
 
         checkoutRepository.update(updatedCheckout);
 
-        // Update asset status
-        Asset updatedAsset = new Asset(
-            asset.id(),
-            asset.organizationId(),
-            asset.assetTag(),
-            asset.serialNumber(),
-            asset.hostname(),
-            asset.displayName(),
-            asset.description(),
-            asset.categoryId(),
-            asset.manufacturerId(),
-            asset.currentLocationId(),
-            null,
-            null,
-            AssetStatus.IN_STOCK,
-            asset.purchaseDate(),
-            asset.warrantyExpiryDate(),
-            asset.archivedAt(),
-            asset.createdAt(),
-            now
+        // H-1: Dedicated status update — avoids reconstructing the full Asset record.
+        assetRepository.updateStatusAndAssignedUser(
+            asset.id(), asset.organizationId(), AssetStatus.IN_STOCK, null, now
         );
-        assetRepository.update(updatedAsset);
 
         auditLogService.record(new AuditLogCommand(
             principal.organizationId(),
@@ -180,21 +154,25 @@ public class CheckoutService {
             "ASSET",
             asset.id(),
             "SUCCESS",
-            java.util.Map.of("notes", request.notes() != null ? request.notes() : "")
+            Map.of("notes", request.notes() != null ? request.notes() : "")
         ));
 
         return mapToView(updatedCheckout);
     }
 
     public List<CheckoutView> getHistoryByAssetId(AuthenticatedUserPrincipal principal, UUID assetId) {
-        // Verify access to asset
-        Asset asset = assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
+        // C-1: RBAC — read access requires at least AUDITOR or ASSET_MANAGER.
+        tenantAccessService.requireAssignmentReadAccess(principal, principal.organizationId());
+
+        // Verify the asset belongs to this organization.
+        assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
             .orElseThrow(AssetNotFoundException::new);
 
+        // L-3: Use Java 21 Stream.toList() instead of Collectors.toList().
         return checkoutRepository.findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(assetId, principal.organizationId())
             .stream()
             .map(this::mapToView)
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private CheckoutView mapToView(AssetCheckout checkout) {

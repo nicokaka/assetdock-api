@@ -13,7 +13,7 @@ public class SystemInfoController {
 
 	private final String appVersion;
 
-	public SystemInfoController(@Value("${info.app.version:1.1.0}") String appVersion) {
+	public SystemInfoController(@Value("${info.app.version}") String appVersion) {
 		this.appVersion = appVersion;
 	}
 

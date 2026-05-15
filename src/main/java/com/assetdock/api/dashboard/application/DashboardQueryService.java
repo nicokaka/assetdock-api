@@ -27,6 +27,13 @@ public class DashboardQueryService {
 
 	public DashboardStatsView getStats(AuthenticatedUserPrincipal principal) {
 		UUID orgId = principal.organizationId();
+
+		// H-3: SUPER_ADMIN without an organization context yields no meaningful org-scoped data.
+		// Return a clear empty state rather than silently returning zeros.
+		if (orgId == null) {
+			return new DashboardStatsView(0, 0, 0, 0, 0, 0, 0, 0, 0);
+		}
+
 		Map<AssetStatus, Integer> assetCounts = assetRepository.countByStatusForOrganization(orgId);
 		
 		int totalAssets = assetCounts.values().stream().mapToInt(Integer::intValue).sum();
@@ -38,7 +45,7 @@ public class DashboardQueryService {
 		
 		int totalUsers = userRepository.countTotalUsersForOrganization(orgId);
 		int activeUsers = userRepository.countActiveUsersForOrganization(orgId);
-		int activeCheckouts = orgId != null ? checkoutRepository.countActiveCheckoutsForOrganization(orgId) : 0;
+		int activeCheckouts = checkoutRepository.countActiveCheckoutsForOrganization(orgId);
 		
 		return new DashboardStatsView(
 			totalAssets,

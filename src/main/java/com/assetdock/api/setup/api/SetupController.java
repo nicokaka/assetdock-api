@@ -3,6 +3,7 @@ package com.assetdock.api.setup.api;
 import com.assetdock.api.setup.application.SetupCommand;
 import com.assetdock.api.setup.application.SetupResult;
 import com.assetdock.api.setup.application.SetupService;
+import com.assetdock.api.setup.application.SystemAlreadyConfiguredException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +31,13 @@ public class SetupController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	SetupResponse setup(@Valid @RequestBody SetupRequest request) {
+		// C-3: Fast-path rejection before acquiring the advisory lock.
+		// The service will also check inside the transaction, but this avoids
+		// unnecessary lock contention once the system is already configured.
+		if (setupService.isConfigured()) {
+			throw new SystemAlreadyConfiguredException();
+		}
+
 		SetupResult result = setupService.setup(new SetupCommand(
 			request.organizationName(),
 			request.adminFullName(),
@@ -50,3 +58,4 @@ public class SetupController {
 		);
 	}
 }
+

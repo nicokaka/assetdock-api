@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -94,6 +95,21 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
             .param("organizationId", organizationId)
             .query(this::mapRow)
             .list();
+    }
+
+    @Override
+    public Optional<AssetCheckout> findActiveByAssetIdAndOrganizationIdForUpdate(UUID assetId, UUID organizationId) {
+        return jdbcClient.sql("""
+            SELECT * FROM asset_checkouts
+            WHERE asset_id = :assetId
+              AND organization_id = :organizationId
+              AND checked_in_at IS NULL
+            FOR UPDATE
+            """)
+            .param("assetId", assetId)
+            .param("organizationId", organizationId)
+            .query(this::mapRow)
+            .optional();
     }
 
     @Override

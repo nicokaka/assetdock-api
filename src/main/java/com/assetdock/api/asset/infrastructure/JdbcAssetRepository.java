@@ -359,6 +359,24 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
+	public void updateStatusAndAssignedUser(UUID assetId, UUID organizationId, AssetStatus status, UUID assignedUserId, Instant updatedAt) {
+		jdbcClient.sql("""
+			UPDATE assets
+			SET status = CAST(:status AS asset_status),
+			    current_assigned_user_id = :assignedUserId,
+			    updated_at = :updatedAt
+			WHERE id = :assetId
+			  AND organization_id = :organizationId
+			""")
+			.param("assetId", assetId)
+			.param("organizationId", organizationId)
+			.param("status", status.name())
+			.param("assignedUserId", assignedUserId)
+			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
+			.update();
+	}
+
+	@Override
 	public Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt) {
 		jdbcClient.sql("""
 			UPDATE assets
