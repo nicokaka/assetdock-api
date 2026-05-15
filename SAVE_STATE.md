@@ -1,46 +1,54 @@
-# 💾 SAVE STATE - AssetDock (06 de Maio de 2026)
+# SAVE STATE — AssetDock API (15 de Maio de 2026)
 
-## 📌 Status Atual: MVP 100% Finalizado e Hardened
+## Status Atual: MVP Completo — v1.1.0 em `main`
 
-Se você está lendo isso em casa, pode ficar tranquilo! Todo o código da sessão de hoje foi testado, comitado na branch `main` e está devidamente sincronizado com o GitHub em ambos os repositórios (`assetdock-api` e `assetdock-web`). 
+Branch: `main` · Commit: `1265571` · Build: PASSING
 
-O foco de hoje foi a **Auditoria de Produção e Hardening (Blindagem)**. O sistema deixou de ser apenas funcional e passou a ser "1000% sólido e confiável" para um ambiente real de produção.
-
----
-
-## 🛠️ O que foi feito hoje?
-
-### 1. Prevenção de Condições de Corrida (Backend)
-- Implementamos **Lock Pessimista** no `JdbcAssetRepository` usando `SELECT ... FOR UPDATE`.
-- Agora é impossível que dois usuários façam checkout do mesmo ativo simultaneamente. As transações são enfileiradas pelo banco de dados.
-- O relógio do sistema (`Clock`) foi injetado no `CheckoutService` para permitir testes consistentes.
-
-### 2. Segurança Reforçada (Backend)
-- O default inseguro do `JWT_SECRET` foi bloqueado.
-- Os cookies de sessão (`secure-cookies`) agora são forçados como `true` nativamente na configuração de produção (`application-production.yml`).
-- A importação de CSV foi sanitizada para não vazar mensagens de erro internas (ex: `InvalidAssetRequestException`) para os usuários, prevenindo exposição de regras de negócio ou estrutura do banco.
-
-### 3. Melhorias de Performance
-- Criada a migration `V32__add_active_checkout_index.sql` adicionando um índice parcial de banco de dados para acelerar drasticamente a checagem de checkouts ativos (`checked_in_at IS NULL`).
-- As listagens de usuários agora têm um limite duro de `size=100` por página, evitando queries abusivas que sobrecarreguem o PostgreSQL.
-
-### 4. Estabilidade e UX (Frontend)
-- Adicionado um `<RouteErrorBoundary />` na *App Shell*. Se uma página quebrar por um erro de JavaScript (ex: parse de data falhou), apenas a tela da funcionalidade quebra, mantendo o menu lateral e o app intactos.
-- Resolvido o problema de *Infinite Loading* no guardião de sessões (`session-guard.tsx`) quando a API retorna erro 500.
-- O *Logout* foi reescrito para fazer navegação limpa sem estourar o cache global, mantendo a experiência fluida se houver erro de rede.
-- Adicionado `useDebounce` nas páginas de Assets e Users. A barra de pesquisa agora aguarda 400ms antes de bater na API, evitando flood de requests enquanto o usuário digita.
-- Adicionada camada de validação do token CSRF direto no `http-client.ts`, prevendo erros obscuros.
+Ambos os repositórios (`assetdock-api` e `assetdock-web`) estão sincronizados com o GitHub.
 
 ---
 
-## 🚀 Próximos Passos (Para continuar daqui)
+## O que foi implementado (histórico consolidado)
 
-Você encerrou oficialmente o **MVP (Fase 1 e Fase 2 concluídas)** e blindou o projeto. Quando você retomar os trabalhos, os próximos passos lógicos do roadmap são:
+### Módulos do backend (11 bounded contexts)
+- `auth` — Autenticação dual: JWT HS256 (M2M) + Cookie Sessions (web), CSRF, throttling, brute-force lock
+- `user` — CRUD completo, 5 roles RBAC, password change/reset admin, auto-lock
+- `organization` — Gestão de tenants
+- `catalog` — Categories, Manufacturers, Locations (soft-delete)
+- `asset` — CRUD, status lifecycle, archive, export
+- `assignment` — Atribuição de ativos com histórico
+- `checkout` — Checkout/Checkin com pessimistic locking, timeline, dashboard KPI
+- `importer` — Import CSV em bulk (bounded, throttled, parcial success)
+- `audit` — Trail imutável, 30 event types, paginado e filtrado
+- `dashboard` — KPIs de ativos, usuários e checkouts ativos
+- `search` — Busca global (Cmd+K, trigram indexes)
+- `setup` — Wizard de primeiro uso self-hosted (advisory lock)
 
-1. **Testes do Sistema em Staging / Produção real**: Subir a aplicação na infraestrutura final para garantir que as conexões HTTPS resolvam o novo bloqueio de cookies.
-2. **Nova Fase de Funcionalidades (Fase 3)**:
-   - Integração com envio de e-mails reais (SMTP).
-   - Rotação de *Refresh Tokens* e *MFA (Multi-Factor Authentication)*.
-   - Refinamentos avançados no Dashboard e novos gráficos.
+### Hardening de produção
+- Lock pessimista em checkout/checkin (SELECT ... FOR UPDATE)
+- Secure cookies forçados em production profile
+- Rate limiting: login (10/min), import (5/5min), setup (3/10min)
+- Índices parciais no PostgreSQL para checkouts ativos e busca textual
+- Session cleanup automático (cron horário)
+- RFC 9457 ProblemDetail em todos os erros
 
-Bom retorno para casa! O projeto está a salvo. 🚀
+### Testes (29 arquivos)
+- Integration tests: auth, web session, CSRF, user, org, catalog, asset, assignment, checkout, audit, importer, setup, CORS, contract
+- Unit tests: AuthenticationService, CatalogServices, UserManagementService, ProblemDetailFactory, SeedRunner
+
+### Documentação
+- README.md / README.pt-BR.md
+- INSTALL.md, DEPLOY_GUIDE.md, SELFHOSTED.md, RUNBOOK.md
+- docs/security/ (threat model, trust boundaries, abuse cases, security decisions)
+- docs/adr/ (ADR-001: global unique email)
+
+---
+
+## Próximos passos (se retomar)
+
+1. Avaliar Dependabot PRs pendentes (zxing, springdoc, Spring Boot 4, GitHub Actions)
+2. Fase 3 — funcionalidades futuras:
+   - Notificações por e-mail (SMTP) para eventos críticos
+   - MFA (Multi-Factor Authentication)
+   - Relatórios e exportação avançada
+   - Refresh token rotation
