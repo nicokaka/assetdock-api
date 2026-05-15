@@ -34,7 +34,8 @@ public class AuditLogQueryService {
 		AuditEventType eventType,
 		Instant from,
 		Instant to,
-		UUID organizationId
+		UUID organizationId,
+		UUID actorUserId
 	) {
 		int resolvedPage = page == null ? QueryLimits.DEFAULT_PAGE : page;
 		int resolvedSize = size == null ? QueryLimits.DEFAULT_PAGE_SIZE : size;
@@ -42,12 +43,14 @@ public class AuditLogQueryService {
 		validateDateRange(from, to);
 
 		UUID scopeOrganizationId = resolveScopeOrganizationId(actor, organizationId);
-		long totalElements = auditLogRepository.countByCriteria(scopeOrganizationId, eventType, from, to);
+		// M-8: actorUserId is a trusted UUID — no additional sanitization needed.
+		long totalElements = auditLogRepository.countByCriteria(scopeOrganizationId, eventType, from, to, actorUserId);
 		List<AuditLogView> items = auditLogRepository.findByCriteria(
 			scopeOrganizationId,
 			eventType,
 			from,
 			to,
+			actorUserId,
 			resolvedSize,
 			offset
 		).stream()

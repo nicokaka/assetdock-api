@@ -31,8 +31,10 @@ public class AuditLogController {
 		@RequestParam(required = false) AuditEventType eventType,
 		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
 		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
-		@RequestParam(required = false) UUID organizationId
+		@RequestParam(required = false) UUID organizationId,
+		// M-8: Server-side actor filter for full-dataset search across pages.
+		@RequestParam(required = false) UUID actorUserId
 	) {
-		return auditLogQueryService.list(principal, page, size, eventType, from, to, organizationId);
+		return auditLogQueryService.list(principal, page, size, eventType, from, to, organizationId, actorUserId);
 	}
 }

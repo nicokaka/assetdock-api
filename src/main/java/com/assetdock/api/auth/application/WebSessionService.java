@@ -102,14 +102,21 @@ public class WebSessionService {
 			return Optional.empty();
 		}
 
-		webSessionRepository.updateLastActiveAt(session.id(), now);
+		// M-10: Only write lastActiveAt if it has drifted by more than 30 seconds.
+		// This avoids a DB write on every single authenticated request under load.
+		// The 30s window is conservative enough not to affect idle-timeout accuracy.
+		boolean shouldUpdateActivity = now.isAfter(session.lastActiveAt().plusSeconds(30));
+		if (shouldUpdateActivity) {
+			webSessionRepository.updateLastActiveAt(session.id(), now);
+		}
+
 		return Optional.of(new WebAuthenticatedSession(
 			new WebSession(
 				session.id(),
 				session.userId(),
 				session.csrfToken(),
 				session.createdAt(),
-				now,
+				shouldUpdateActivity ? now : session.lastActiveAt(),
 				session.expiresAt(),
 				session.invalidatedAt()
 			),

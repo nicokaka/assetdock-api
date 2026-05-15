@@ -14,7 +14,8 @@ public interface AuditLogRepository {
 		UUID organizationId,
 		AuditEventType eventType,
 		Instant from,
-		Instant to
+		Instant to,
+		UUID actorUserId
 	);
 
 	List<AuditLogEntry> findByCriteria(
@@ -22,6 +23,7 @@ public interface AuditLogRepository {
 		AuditEventType eventType,
 		Instant from,
 		Instant to,
+		UUID actorUserId,
 		int limit,
 		int offset
 	);

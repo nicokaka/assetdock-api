@@ -160,7 +160,8 @@ public class CheckoutService {
         return mapToView(updatedCheckout);
     }
 
-    public List<CheckoutView> getHistoryByAssetId(AuthenticatedUserPrincipal principal, UUID assetId) {
+	@Transactional(readOnly = true)
+	public List<CheckoutView> getHistoryByAssetId(AuthenticatedUserPrincipal principal, UUID assetId) {
         // C-1: RBAC — read access requires at least AUDITOR or ASSET_MANAGER.
         tenantAccessService.requireAssignmentReadAccess(principal, principal.organizationId());
 

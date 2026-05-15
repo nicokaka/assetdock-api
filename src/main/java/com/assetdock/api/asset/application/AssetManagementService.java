@@ -196,6 +196,10 @@ public class AssetManagementService {
 		tenantAccessService.requireAssetWriteAccess(actor, existingAsset.organizationId());
 		ensureNotArchived(existingAsset, "Archived assets cannot change status.");
 
+		// A-1: Enforce valid status transitions server-side. The checkout/checkin flow
+		// owns IN_STOCK ↔ ASSIGNED transitions; manual updates may not bypass it.
+		validateStatusTransition(existingAsset.status(), command.status());
+
 		Instant now = Instant.now(clock);
 		Asset updatedAsset = new Asset(
 			existingAsset.id(),
@@ -238,7 +242,10 @@ public class AssetManagementService {
 		}
 
 		if (existingAsset.status() != AssetStatus.RETIRED && existingAsset.status() != AssetStatus.LOST) {
-			throw new InvalidAssetRequestException("Only RETIRED or LOST assets can be archived.");
+			String message = existingAsset.status() == AssetStatus.ASSIGNED
+				? "This asset is currently assigned. Check it in before archiving."
+				: "Only RETIRED or LOST assets can be archived.";
+			throw new InvalidAssetRequestException(message);
 		}
 
 		Instant now = Instant.now(clock);
@@ -352,6 +359,33 @@ public class AssetManagementService {
 	private String normalizeHostname(String value) {
 		String normalized = normalizeOptional(value);
 		return normalized == null ? null : normalized.toLowerCase(java.util.Locale.ROOT);
+	}
+
+	private void validateStatusTransition(AssetStatus current, AssetStatus requested) {
+		if (current == requested) {
+			return;
+		}
+		// IN_STOCK ↔ ASSIGNED transitions are owned by the checkout/checkin flow.
+		// Manual status updates may not move an asset into or out of ASSIGNED via this endpoint.
+		boolean isRestrictedTransition =
+			(current == AssetStatus.IN_STOCK && requested == AssetStatus.ASSIGNED) ||
+			(current == AssetStatus.ASSIGNED && requested == AssetStatus.IN_STOCK);
+
+		if (isRestrictedTransition) {
+			throw new InvalidAssetRequestException(
+				"Status transition from " + current + " to " + requested +
+				" is not allowed. Use the checkout/checkin flow instead."
+			);
+		}
+
+		// RETIRED and LOST are terminal states — only lateral movement between them is allowed.
+		boolean fromTerminal = current == AssetStatus.RETIRED || current == AssetStatus.LOST;
+		boolean toNonTerminal = requested == AssetStatus.IN_STOCK || requested == AssetStatus.ASSIGNED || requested == AssetStatus.IN_MAINTENANCE;
+		if (fromTerminal && toNonTerminal) {
+			throw new InvalidAssetRequestException(
+				"Assets in status " + current + " cannot be moved to " + requested + "."
+			);
+		}
 	}
 
 	private void ensureNotArchived(Asset asset, String message) {
