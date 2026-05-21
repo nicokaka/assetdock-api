@@ -51,10 +51,11 @@ public class CheckoutService {
     }
 
     public CheckoutView checkout(AuthenticatedUserPrincipal principal, UUID assetId, CheckoutRequest request) {
+        UUID organizationId = requireActorOrganizationId(principal);
         // C-1: RBAC — only ORG_ADMIN and ASSET_MANAGER may perform checkouts.
-        tenantAccessService.requireAssignmentWriteAccess(principal, principal.organizationId());
+        tenantAccessService.requireAssignmentWriteAccess(principal, organizationId);
 
-        Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
+        Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, organizationId)
             .orElseThrow(AssetNotFoundException::new);
 
         if (asset.status() != AssetStatus.IN_STOCK) {
@@ -105,10 +106,11 @@ public class CheckoutService {
     }
 
     public CheckoutView checkin(AuthenticatedUserPrincipal principal, UUID assetId, CheckinRequest request) {
+        UUID organizationId = requireActorOrganizationId(principal);
         // C-1: RBAC — only ORG_ADMIN and ASSET_MANAGER may perform checkins.
-        tenantAccessService.requireAssignmentWriteAccess(principal, principal.organizationId());
+        tenantAccessService.requireAssignmentWriteAccess(principal, organizationId);
 
-        Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
+        Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, organizationId)
             .orElseThrow(AssetNotFoundException::new);
 
         if (asset.status() != AssetStatus.ASSIGNED) {
@@ -117,7 +119,7 @@ public class CheckoutService {
 
         // C-2: Acquire a row-level lock on the active checkout record to prevent double-checkin.
         AssetCheckout activeCheckout = checkoutRepository
-            .findActiveByAssetIdAndOrganizationIdForUpdate(assetId, principal.organizationId())
+            .findActiveByAssetIdAndOrganizationIdForUpdate(assetId, organizationId)
             .orElseThrow(() -> new InvalidCheckoutRequestException("No active checkout found for this asset"));
 
         Instant now = Instant.now(clock);
@@ -162,15 +164,16 @@ public class CheckoutService {
 
 	@Transactional(readOnly = true)
 	public List<CheckoutView> getHistoryByAssetId(AuthenticatedUserPrincipal principal, UUID assetId) {
+        UUID organizationId = requireActorOrganizationId(principal);
         // C-1: RBAC — read access requires at least AUDITOR or ASSET_MANAGER.
-        tenantAccessService.requireAssignmentReadAccess(principal, principal.organizationId());
+        tenantAccessService.requireAssignmentReadAccess(principal, organizationId);
 
         // Verify the asset belongs to this organization.
-        assetRepository.findByIdAndOrganizationId(assetId, principal.organizationId())
+        assetRepository.findByIdAndOrganizationId(assetId, organizationId)
             .orElseThrow(AssetNotFoundException::new);
 
         // L-3: Use Java 21 Stream.toList() instead of Collectors.toList().
-        return checkoutRepository.findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(assetId, principal.organizationId())
+        return checkoutRepository.findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(assetId, organizationId)
             .stream()
             .map(this::mapToView)
             .toList();
@@ -188,5 +191,12 @@ public class CheckoutService {
             checkout.checkedInBy(),
             checkout.notes()
         );
+    }
+
+    private UUID requireActorOrganizationId(AuthenticatedUserPrincipal actor) {
+        if (actor.organizationId() == null) {
+            throw new InvalidCheckoutRequestException("Tenant organization context is required for checkout operations.");
+        }
+        return actor.organizationId();
     }
 }
