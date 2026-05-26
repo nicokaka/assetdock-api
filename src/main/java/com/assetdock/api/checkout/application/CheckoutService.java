@@ -92,7 +92,7 @@ public class CheckoutService {
             asset.id(), asset.organizationId(), AssetStatus.ASSIGNED, request.userId(), now
         );
 
-        auditLogService.record(new AuditLogCommand(
+        auditLogService.recordInCurrentTransaction(new AuditLogCommand(
             principal.organizationId(),
             principal.userId(),
             AuditEventType.ASSET_CHECKED_OUT,
@@ -149,7 +149,7 @@ public class CheckoutService {
             asset.id(), asset.organizationId(), AssetStatus.IN_STOCK, null, now
         );
 
-        auditLogService.record(new AuditLogCommand(
+        auditLogService.recordInCurrentTransaction(new AuditLogCommand(
             principal.organizationId(),
             principal.userId(),
             AuditEventType.ASSET_CHECKED_IN,
