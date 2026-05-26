@@ -88,7 +88,15 @@ task validateEnv(type: Exec) {
     }
 }
 
-// Make sure validateEnv runs before bootRun
+// Make sure validateEnv runs before bootRun and injects environment variables
 tasks.named('bootRun') {
     dependsOn validateEnv
+    if (file(".env").exists()) {
+        file(".env").readLines().each { line ->
+            def trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#") || !trimmed.contains("=")) return
+            def parts = trimmed.split("=", 2)
+            environment parts[0].trim(), parts[1].trim()
+        }
+    }
 }
