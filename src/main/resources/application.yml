@@ -42,6 +42,9 @@ management:
         enabled: false
       exposure:
         include: health,info
+      cors:
+        allowed-origins: ${LOCAL_FRONTEND_ORIGINS:http://localhost:3000,http://localhost:5173}
+        allowed-methods: GET,OPTIONS
   endpoint:
     health:
       probes:
