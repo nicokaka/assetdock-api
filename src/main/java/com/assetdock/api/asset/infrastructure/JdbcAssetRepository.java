@@ -110,7 +110,11 @@ public class JdbcAssetRepository implements AssetRepository {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE a.organization_id = :organizationId ");
 		
 		if (status != null && !status.isBlank()) {
-			sql.append(" AND a.status = CAST(:status AS asset_status) ");
+			if ("OPERATIONAL".equalsIgnoreCase(status)) {
+				sql.append(" AND a.status IN (CAST('ASSIGNED' AS asset_status), CAST('IN_STOCK' AS asset_status)) ");
+			} else {
+				sql.append(" AND a.status = CAST(:status AS asset_status) ");
+			}
 		}
 		
 		if (search != null && !search.isBlank()) {
@@ -132,7 +136,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("limit", limit)
 			.param("offset", offset);
 
-		if (status != null && !status.isBlank()) {
+		if (status != null && !status.isBlank() && !"OPERATIONAL".equalsIgnoreCase(status)) {
 			statement = statement.param("status", status);
 		}
 		
@@ -156,7 +160,11 @@ public class JdbcAssetRepository implements AssetRepository {
 		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM assets WHERE organization_id = :organizationId ");
 		
 		if (status != null && !status.isBlank()) {
-			sql.append(" AND status = CAST(:status AS asset_status) ");
+			if ("OPERATIONAL".equalsIgnoreCase(status)) {
+				sql.append(" AND status IN (CAST('ASSIGNED' AS asset_status), CAST('IN_STOCK' AS asset_status)) ");
+			} else {
+				sql.append(" AND status = CAST(:status AS asset_status) ");
+			}
 		}
 		
 		if (search != null && !search.isBlank()) {
@@ -174,7 +182,7 @@ public class JdbcAssetRepository implements AssetRepository {
 		var statement = jdbcClient.sql(sql.toString())
 			.param("organizationId", organizationId);
 
-		if (status != null && !status.isBlank()) {
+		if (status != null && !status.isBlank() && !"OPERATIONAL".equalsIgnoreCase(status)) {
 			statement = statement.param("status", status);
 		}
 		
@@ -199,7 +207,11 @@ public class JdbcAssetRepository implements AssetRepository {
 		StringBuilder sql = new StringBuilder(baseSelect() + " WHERE 1=1 ");
 		
 		if (status != null && !status.isBlank()) {
-			sql.append(" AND a.status = CAST(:status AS asset_status) ");
+			if ("OPERATIONAL".equalsIgnoreCase(status)) {
+				sql.append(" AND a.status IN (CAST('ASSIGNED' AS asset_status), CAST('IN_STOCK' AS asset_status)) ");
+			} else {
+				sql.append(" AND a.status = CAST(:status AS asset_status) ");
+			}
 		}
 		
 		if (search != null && !search.isBlank()) {
@@ -220,7 +232,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("limit", limit)
 			.param("offset", offset);
 
-		if (status != null && !status.isBlank()) {
+		if (status != null && !status.isBlank() && !"OPERATIONAL".equalsIgnoreCase(status)) {
 			statement = statement.param("status", status);
 		}
 		
@@ -244,7 +256,11 @@ public class JdbcAssetRepository implements AssetRepository {
 		StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM assets WHERE 1=1 ");
 		
 		if (status != null && !status.isBlank()) {
-			sql.append(" AND status = CAST(:status AS asset_status) ");
+			if ("OPERATIONAL".equalsIgnoreCase(status)) {
+				sql.append(" AND status IN (CAST('ASSIGNED' AS asset_status), CAST('IN_STOCK' AS asset_status)) ");
+			} else {
+				sql.append(" AND status = CAST(:status AS asset_status) ");
+			}
 		}
 		
 		if (search != null && !search.isBlank()) {
@@ -261,7 +277,7 @@ public class JdbcAssetRepository implements AssetRepository {
 
 		var statement = jdbcClient.sql(sql.toString());
 
-		if (status != null && !status.isBlank()) {
+		if (status != null && !status.isBlank() && !"OPERATIONAL".equalsIgnoreCase(status)) {
 			statement = statement.param("status", status);
 		}
 		
