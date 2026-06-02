@@ -43,7 +43,6 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 	private static final UUID ASSET_AVAILABLE_1 = UUID.fromString("50000000-0000-0000-0000-000000000005");
 	private static final UUID ASSET_ASSIGNED_1 = UUID.fromString("60000000-0000-0000-0000-000000000006");
 	private static final UUID ASSET_RETIRED_1 = UUID.fromString("70000000-0000-0000-0000-000000000007");
-	private static final UUID ASSET_LOST_1 = UUID.fromString("80000000-0000-0000-0000-000000000008");
 	private static final UUID ASSET_ARCHIVED_1 = UUID.fromString("81000000-0000-0000-0000-000000000008");
 	private static final UUID ASSET_ORG_2 = UUID.fromString("90000000-0000-0000-0000-000000000009");
 	private static final UUID ACTIVE_ASSIGNMENT_1 = UUID.fromString("a0000000-0000-0000-0000-00000000000a");
@@ -84,7 +83,6 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 		insertAsset(ASSET_AVAILABLE_1, ORG_1, "AST-001", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null, "IN_STOCK");
 		insertAsset(ASSET_ASSIGNED_1, ORG_1, "AST-002", CATEGORY_1, MANUFACTURER_1, LOCATION_1, USER_1, "ASSIGNED");
 		insertAsset(ASSET_RETIRED_1, ORG_1, "AST-003", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null, "RETIRED");
-		insertAsset(ASSET_LOST_1, ORG_1, "AST-004", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null, "LOST");
 		insertArchivedAsset(ASSET_ARCHIVED_1, ORG_1, "AST-005", CATEGORY_1, MANUFACTURER_1, LOCATION_1);
 		insertAsset(ASSET_ORG_2, ORG_2, "AST-900", null, null, LOCATION_2, USER_2, "ASSIGNED");
 
@@ -257,20 +255,10 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 	}
 
 	@Test
-	void shouldNotAssignRetiredOrLostAssets() throws Exception {
+	void shouldNotAssignRetiredAssets() throws Exception {
 		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 
 		mockMvc.perform(post("/assets/{id}/assignments", ASSET_RETIRED_1)
-				.header(AUTHORIZATION, bearer(token))
-				.contentType(APPLICATION_JSON)
-				.content("""
-					{
-					  "userId": "%s"
-					}
-					""".formatted(USER_1)))
-			.andExpect(status().isBadRequest());
-
-		mockMvc.perform(post("/assets/{id}/assignments", ASSET_LOST_1)
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(APPLICATION_JSON)
 				.content("""

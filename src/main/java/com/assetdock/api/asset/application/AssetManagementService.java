@@ -241,10 +241,10 @@ public class AssetManagementService {
 			return toView(existingAsset);
 		}
 
-		if (existingAsset.status() != AssetStatus.RETIRED && existingAsset.status() != AssetStatus.LOST) {
+		if (existingAsset.status() != AssetStatus.RETIRED) {
 			String message = existingAsset.status() == AssetStatus.ASSIGNED
 				? "This asset is currently assigned. Check it in before archiving."
-				: "Only RETIRED or LOST assets can be archived.";
+				: "Only RETIRED assets can be archived.";
 			throw new InvalidAssetRequestException(message);
 		}
 
@@ -365,23 +365,16 @@ public class AssetManagementService {
 		if (current == requested) {
 			return;
 		}
-		// IN_STOCK ↔ ASSIGNED transitions are owned by the checkout/checkin flow.
-		// Manual status updates may not move an asset into or out of ASSIGNED via this endpoint.
-		boolean isRestrictedTransition =
-			(current == AssetStatus.IN_STOCK && requested == AssetStatus.ASSIGNED) ||
-			(current == AssetStatus.ASSIGNED && requested == AssetStatus.IN_STOCK);
 
-		if (isRestrictedTransition) {
+		// Status transitions involving ASSIGNED must go through checkout/checkin APIs.
+		if (current == AssetStatus.ASSIGNED || requested == AssetStatus.ASSIGNED) {
 			throw new InvalidAssetRequestException(
-				"Status transition from " + current + " to " + requested +
-				" is not allowed. Use the checkout/checkin flow instead."
+				"Status transition involving ASSIGNED must be handled via the checkout/checkin endpoints."
 			);
 		}
 
-		// RETIRED and LOST are terminal states — only lateral movement between them is allowed.
-		boolean fromTerminal = current == AssetStatus.RETIRED || current == AssetStatus.LOST;
-		boolean toNonTerminal = requested == AssetStatus.IN_STOCK || requested == AssetStatus.ASSIGNED || requested == AssetStatus.IN_MAINTENANCE;
-		if (fromTerminal && toNonTerminal) {
+		// RETIRED is a terminal state — no transitions out of RETIRED are permitted.
+		if (current == AssetStatus.RETIRED) {
 			throw new InvalidAssetRequestException(
 				"Assets in status " + current + " cannot be moved to " + requested + "."
 			);

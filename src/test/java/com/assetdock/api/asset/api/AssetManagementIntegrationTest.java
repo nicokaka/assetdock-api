@@ -312,11 +312,11 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "status": "LOST"
+					  "status": "RETIRED"
 					}
 					"""))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.status").value("LOST"));
+			.andExpect(jsonPath("$.status").value("RETIRED"));
 
 		Map<String, Object> updatedEvent = latestAuditEvent();
 		org.assertj.core.api.Assertions.assertThat(updatedEvent)

@@ -6,7 +6,6 @@ public record DashboardStatsView(
     int inStockAssets,
     int inMaintenanceAssets,
     int retiredAssets,
-    int lostAssets,
     int totalUsers,
     int activeUsers,
     int activeCheckouts

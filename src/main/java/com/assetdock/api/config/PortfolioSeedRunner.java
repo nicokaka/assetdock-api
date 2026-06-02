@@ -157,9 +157,9 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 			AssetStatus.ASSIGNED, LocalDate.of(2023, 9, 25), now.minus(15, ChronoUnit.DAYS));
 
 		saveAsset(orgId, "AST-BDG-102", "NFC-993-12", null,
-			"HQ Access Badge", "Card ID: 109283",
+			"HQ Access Badge", "Card ID: 109283 - Lost",
 			badgeCat.id(), null, hq.id(), null,
-			AssetStatus.LOST, null, now.minus(60, ChronoUnit.DAYS));
+			AssetStatus.RETIRED, null, now.minus(60, ChronoUnit.DAYS));
 
 		var asset6 = saveAsset(orgId, "AST-MBP-003", "C02H412ZMF8V", "nz-dev-mac-03",
 			"MacBook Air 15\" M2", "Office loaner",

@@ -46,7 +46,6 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
     private static final UUID ASSET_ASSIGNED  = UUID.fromString("60000000-0000-0000-0000-000000000006");
     // Other statuses that must block checkout
     private static final UUID ASSET_RETIRED   = UUID.fromString("70000000-0000-0000-0000-000000000007");
-    private static final UUID ASSET_LOST      = UUID.fromString("80000000-0000-0000-0000-000000000008");
     // Asset in other org
     private static final UUID ASSET_ORG_2     = UUID.fromString("90000000-0000-0000-0000-000000000009");
 
@@ -76,7 +75,6 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
         insertAsset(ASSET_IN_STOCK, ORG_1, "AST-001", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null,   "IN_STOCK");
         insertAsset(ASSET_ASSIGNED, ORG_1, "AST-002", CATEGORY_1, MANUFACTURER_1, LOCATION_1, USER_1, "ASSIGNED");
         insertAsset(ASSET_RETIRED,  ORG_1, "AST-003", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null,   "RETIRED");
-        insertAsset(ASSET_LOST,     ORG_1, "AST-004", CATEGORY_1, MANUFACTURER_1, LOCATION_1, null,   "LOST");
         insertAsset(ASSET_ORG_2,    ORG_2, "AST-900", null, null, null, null, "IN_STOCK");
 
         // Pre-existing active checkout record for ASSET_ASSIGNED
@@ -257,15 +255,6 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
 
         // Cannot checkout a RETIRED asset
         mockMvc.perform(post("/assets/{id}/checkout", ASSET_RETIRED)
-                        .header(AUTHORIZATION, bearer(token))
-                        .contentType(APPLICATION_JSON)
-                        .content("""
-                                {"userId": "%s"}
-                                """.formatted(USER_1)))
-                .andExpect(status().isBadRequest());
-
-        // Cannot checkout a LOST asset
-        mockMvc.perform(post("/assets/{id}/checkout", ASSET_LOST)
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""

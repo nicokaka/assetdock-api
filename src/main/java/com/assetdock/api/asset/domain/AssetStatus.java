@@ -4,6 +4,5 @@ public enum AssetStatus {
 	IN_STOCK,
 	ASSIGNED,
 	IN_MAINTENANCE,
-	RETIRED,
-	LOST
+	RETIRED
 }

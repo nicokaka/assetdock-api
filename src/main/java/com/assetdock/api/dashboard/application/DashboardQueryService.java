@@ -31,7 +31,7 @@ public class DashboardQueryService {
 		// H-3: SUPER_ADMIN without an organization context yields no meaningful org-scoped data.
 		// Return a clear empty state rather than silently returning zeros.
 		if (orgId == null) {
-			return new DashboardStatsView(0, 0, 0, 0, 0, 0, 0, 0, 0);
+			return new DashboardStatsView(0, 0, 0, 0, 0, 0, 0, 0);
 		}
 
 		Map<AssetStatus, Integer> assetCounts = assetRepository.countByStatusForOrganization(orgId);
@@ -41,7 +41,6 @@ public class DashboardQueryService {
 		int inStockAssets = assetCounts.getOrDefault(AssetStatus.IN_STOCK, 0);
 		int inMaintenanceAssets = assetCounts.getOrDefault(AssetStatus.IN_MAINTENANCE, 0);
 		int retiredAssets = assetCounts.getOrDefault(AssetStatus.RETIRED, 0);
-		int lostAssets = assetCounts.getOrDefault(AssetStatus.LOST, 0);
 		
 		int totalUsers = userRepository.countTotalUsersForOrganization(orgId);
 		int activeUsers = userRepository.countActiveUsersForOrganization(orgId);
@@ -53,7 +52,6 @@ public class DashboardQueryService {
 			inStockAssets,
 			inMaintenanceAssets,
 			retiredAssets,
-			lostAssets,
 			totalUsers,
 			activeUsers,
 			activeCheckouts

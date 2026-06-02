@@ -141,8 +141,8 @@ public class AssetAssignmentManagementService {
 			throw new InvalidAssignmentRequestException("Archived assets cannot be assigned.");
 		}
 
-		if (asset.status() == AssetStatus.RETIRED || asset.status() == AssetStatus.LOST) {
-			throw new InvalidAssignmentRequestException("Assets with status RETIRED or LOST cannot be assigned.");
+		if (asset.status() == AssetStatus.RETIRED) {
+			throw new InvalidAssignmentRequestException("Assets with status RETIRED cannot be assigned.");
 		}
 	}
 
