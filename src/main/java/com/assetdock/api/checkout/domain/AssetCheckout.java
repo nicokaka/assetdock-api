@@ -7,7 +7,7 @@ public record AssetCheckout(
     UUID id,
     UUID organizationId,
     UUID assetId,
-    UUID userId,
+    UUID personId,
     Instant checkedOutAt,
     Instant expectedReturnDate,
     Instant checkedInAt,

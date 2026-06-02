@@ -13,7 +13,7 @@ import com.assetdock.api.catalog.domain.LocationRepository;
 import com.assetdock.api.common.query.QueryLimits;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
-import com.assetdock.api.user.domain.UserRepository;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -27,7 +27,7 @@ public class AssetAssignmentManagementService {
 
 	private final AssetAssignmentRepository assetAssignmentRepository;
 	private final AssetRepository assetRepository;
-	private final UserRepository userRepository;
+	private final PersonRepository personRepository;
 	private final LocationRepository locationRepository;
 	private final TenantAccessService tenantAccessService;
 	private final AuditLogService auditLogService;
@@ -36,7 +36,7 @@ public class AssetAssignmentManagementService {
 	public AssetAssignmentManagementService(
 		AssetAssignmentRepository assetAssignmentRepository,
 		AssetRepository assetRepository,
-		UserRepository userRepository,
+		PersonRepository personRepository,
 		LocationRepository locationRepository,
 		TenantAccessService tenantAccessService,
 		AuditLogService auditLogService,
@@ -44,7 +44,7 @@ public class AssetAssignmentManagementService {
 	) {
 		this.assetAssignmentRepository = assetAssignmentRepository;
 		this.assetRepository = assetRepository;
-		this.userRepository = userRepository;
+		this.personRepository = personRepository;
 		this.locationRepository = locationRepository;
 		this.tenantAccessService = tenantAccessService;
 		this.auditLogService = auditLogService;
@@ -59,7 +59,7 @@ public class AssetAssignmentManagementService {
 	) {
 		Asset asset = findAssetForActor(actor, assetId, true);
 		validateAssignableAsset(asset);
-		validateAssignee(asset.organizationId(), command.userId());
+		validateAssignee(asset.organizationId(), command.personId());
 		validateLocation(asset.organizationId(), command.locationId());
 
 		if (assetAssignmentRepository.findActiveByAssetIdAndOrganizationId(asset.id(), asset.organizationId()).isPresent()) {
@@ -71,7 +71,7 @@ public class AssetAssignmentManagementService {
 			UUID.randomUUID(),
 			asset.organizationId(),
 			asset.id(),
-			command.userId(),
+			command.personId(),
 			command.locationId(),
 			now,
 			null,
@@ -81,7 +81,7 @@ public class AssetAssignmentManagementService {
 		);
 
 		AssetAssignment savedAssignment = assetAssignmentRepository.save(assignment);
-		assetRepository.update(syncAssetOnAssign(asset, command.userId(), command.locationId(), now));
+		assetRepository.update(syncAssetOnAssign(asset, command.personId(), command.locationId(), now));
 		recordAudit(savedAssignment, actor.userId(), AuditEventType.ASSET_ASSIGNED);
 
 		return toView(savedAssignment);
@@ -146,18 +146,18 @@ public class AssetAssignmentManagementService {
 		}
 	}
 
-	private void validateAssignee(UUID organizationId, UUID userId) {
-		if (userId == null) {
-			throw new InvalidAssignmentRequestException("userId is required.");
+	private void validateAssignee(UUID organizationId, UUID personId) {
+		if (personId == null) {
+			throw new InvalidAssignmentRequestException("personId is required.");
 		}
 
-		var user = userRepository.findById(userId)
-			.orElseThrow(() -> new InvalidAssignmentRequestException("userId must reference an existing user."));
-		if (user.organizationId() == null || !user.organizationId().equals(organizationId)) {
-			throw new InvalidAssignmentRequestException("userId must belong to the same organization as the asset.");
+		var person = personRepository.findById(personId)
+			.orElseThrow(() -> new InvalidAssignmentRequestException("personId must reference an existing person."));
+		if (person.organizationId() == null || !person.organizationId().equals(organizationId)) {
+			throw new InvalidAssignmentRequestException("personId must belong to the same organization as the asset.");
 		}
-		if (user.status() != com.assetdock.api.user.domain.UserStatus.ACTIVE) {
-			throw new InvalidAssignmentRequestException("userId must reference an ACTIVE user.");
+		if (!person.active()) {
+			throw new InvalidAssignmentRequestException("personId must reference an active person.");
 		}
 	}
 
@@ -173,7 +173,7 @@ public class AssetAssignmentManagementService {
 		}
 	}
 
-	private Asset syncAssetOnAssign(Asset asset, UUID userId, UUID locationId, Instant updatedAt) {
+	private Asset syncAssetOnAssign(Asset asset, UUID personId, UUID locationId, Instant updatedAt) {
 		return new Asset(
 			asset.id(),
 			asset.organizationId(),
@@ -185,8 +185,8 @@ public class AssetAssignmentManagementService {
 			asset.categoryId(),
 			asset.manufacturerId(),
 			locationId != null ? locationId : asset.currentLocationId(),
-			userId,
-			asset.currentAssignedUserName(), // ou null, userId é command.userId()
+			personId,
+			null,
 			AssetStatus.ASSIGNED,
 			asset.purchaseDate(),
 			asset.warrantyExpiryDate(),
@@ -229,7 +229,7 @@ public class AssetAssignmentManagementService {
 			"SUCCESS",
 			Map.of(
 				"assetId", assignment.assetId(),
-				"userId", assignment.userId()
+				"personId", assignment.personId()
 			)
 		));
 	}
@@ -238,7 +238,7 @@ public class AssetAssignmentManagementService {
 		return new AssetAssignmentView(
 			assignment.id(),
 			assignment.assetId(),
-			assignment.userId(),
+			assignment.personId(),
 			assignment.locationId(),
 			assignment.assignedAt(),
 			assignment.unassignedAt(),

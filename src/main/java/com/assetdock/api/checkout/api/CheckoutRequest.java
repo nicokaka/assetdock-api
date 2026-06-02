@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record CheckoutRequest(
-    @NotNull UUID userId,
+    @NotNull UUID personId,
     Instant expectedReturnDate,
     String notes
 ) {

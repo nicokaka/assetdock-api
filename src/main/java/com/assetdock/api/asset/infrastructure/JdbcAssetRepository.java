@@ -55,7 +55,7 @@ public class JdbcAssetRepository implements AssetRepository {
 				category_id,
 				manufacturer_id,
 				current_location_id,
-				current_assigned_user_id,
+				current_assigned_person_id,
 				status,
 				purchase_date,
 				warranty_expiry_date,
@@ -74,7 +74,7 @@ public class JdbcAssetRepository implements AssetRepository {
 				:categoryId,
 				:manufacturerId,
 				:currentLocationId,
-				:currentAssignedUserId,
+				:currentAssignedPersonId,
 				CAST(:status AS asset_status),
 				:purchaseDate,
 				:warrantyExpiryDate,
@@ -93,7 +93,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("categoryId", asset.categoryId())
 			.param("manufacturerId", asset.manufacturerId())
 			.param("currentLocationId", asset.currentLocationId())
-			.param("currentAssignedUserId", asset.currentAssignedUserId())
+			.param("currentAssignedPersonId", asset.currentAssignedPersonId())
 			.param("status", asset.status().name())
 			.param("purchaseDate", asset.purchaseDate())
 			.param("warrantyExpiryDate", asset.warrantyExpiryDate())
@@ -344,7 +344,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			    category_id = :categoryId,
 			    manufacturer_id = :manufacturerId,
 			    current_location_id = :currentLocationId,
-			    current_assigned_user_id = :currentAssignedUserId,
+			    current_assigned_person_id = :currentAssignedPersonId,
 			    status = CAST(:status AS asset_status),
 			    purchase_date = :purchaseDate,
 			    warranty_expiry_date = :warrantyExpiryDate,
@@ -363,7 +363,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("categoryId", asset.categoryId())
 			.param("manufacturerId", asset.manufacturerId())
 			.param("currentLocationId", asset.currentLocationId())
-			.param("currentAssignedUserId", asset.currentAssignedUserId())
+			.param("currentAssignedPersonId", asset.currentAssignedPersonId())
 			.param("status", asset.status().name())
 			.param("purchaseDate", asset.purchaseDate())
 			.param("warrantyExpiryDate", asset.warrantyExpiryDate())
@@ -375,11 +375,11 @@ public class JdbcAssetRepository implements AssetRepository {
 	}
 
 	@Override
-	public void updateStatusAndAssignedUser(UUID assetId, UUID organizationId, AssetStatus status, UUID assignedUserId, Instant updatedAt) {
+	public void updateStatusAndAssignedPerson(UUID assetId, UUID organizationId, AssetStatus status, UUID assignedPersonId, Instant updatedAt) {
 		jdbcClient.sql("""
 			UPDATE assets
 			SET status = CAST(:status AS asset_status),
-			    current_assigned_user_id = :assignedUserId,
+			    current_assigned_person_id = :assignedPersonId,
 			    updated_at = :updatedAt
 			WHERE id = :assetId
 			  AND organization_id = :organizationId
@@ -387,7 +387,7 @@ public class JdbcAssetRepository implements AssetRepository {
 			.param("assetId", assetId)
 			.param("organizationId", organizationId)
 			.param("status", status.name())
-			.param("assignedUserId", assignedUserId)
+			.param("assignedPersonId", assignedPersonId)
 			.param("updatedAt", JdbcColumnReaders.toOffsetDateTime(updatedAt))
 			.update();
 	}
@@ -432,11 +432,11 @@ public class JdbcAssetRepository implements AssetRepository {
 	private String baseSelect() {
 		return """
 			SELECT a.id, a.organization_id, a.asset_tag, a.serial_number, a.hostname, a.display_name, a.description,
-			       a.category_id, a.manufacturer_id, a.current_location_id, a.current_assigned_user_id, a.status,
+			       a.category_id, a.manufacturer_id, a.current_location_id, a.current_assigned_person_id, a.status,
 			       a.purchase_date, a.warranty_expiry_date, a.archived_at, a.created_at, a.updated_at,
-			       u.full_name AS current_assigned_user_name
+			       p.full_name AS current_assigned_person_name
 			FROM assets a
-			LEFT JOIN users u ON a.current_assigned_user_id = u.id
+			LEFT JOIN people p ON a.current_assigned_person_id = p.id
 			""";
 	}
 
@@ -452,8 +452,8 @@ public class JdbcAssetRepository implements AssetRepository {
 			resultSet.getObject("category_id", UUID.class),
 			resultSet.getObject("manufacturer_id", UUID.class),
 			resultSet.getObject("current_location_id", UUID.class),
-			resultSet.getObject("current_assigned_user_id", UUID.class),
-			resultSet.getString("current_assigned_user_name"),
+			resultSet.getObject("current_assigned_person_id", UUID.class),
+			resultSet.getString("current_assigned_person_name"),
 			AssetStatus.valueOf(resultSet.getString("status")),
 			resultSet.getObject("purchase_date", LocalDate.class),
 			resultSet.getObject("warranty_expiry_date", LocalDate.class),

@@ -12,7 +12,7 @@ import com.assetdock.api.catalog.domain.ManufacturerRepository;
 
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
-import com.assetdock.api.user.domain.UserRepository;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -28,7 +28,7 @@ public class AssetManagementService {
 	private final CategoryRepository categoryRepository;
 	private final ManufacturerRepository manufacturerRepository;
 	private final LocationRepository locationRepository;
-	private final UserRepository userRepository;
+	private final PersonRepository personRepository;
 	private final TenantAccessService tenantAccessService;
 	private final AuditLogService auditLogService;
 	private final Clock clock;
@@ -38,7 +38,7 @@ public class AssetManagementService {
 		CategoryRepository categoryRepository,
 		ManufacturerRepository manufacturerRepository,
 		LocationRepository locationRepository,
-		UserRepository userRepository,
+		PersonRepository personRepository,
 		TenantAccessService tenantAccessService,
 		AuditLogService auditLogService,
 		Clock clock
@@ -47,7 +47,7 @@ public class AssetManagementService {
 		this.categoryRepository = categoryRepository;
 		this.manufacturerRepository = manufacturerRepository;
 		this.locationRepository = locationRepository;
-		this.userRepository = userRepository;
+		this.personRepository = personRepository;
 		this.tenantAccessService = tenantAccessService;
 		this.auditLogService = auditLogService;
 		this.clock = clock;
@@ -64,7 +64,7 @@ public class AssetManagementService {
 		}
 
 		AssetStatus status = command.status() == null ? AssetStatus.IN_STOCK : command.status();
-		validateReferences(organizationId, command.categoryId(), command.manufacturerId(), command.currentLocationId(), command.currentAssignedUserId());
+		validateReferences(organizationId, command.categoryId(), command.manufacturerId(), command.currentLocationId(), command.currentAssignedPersonId());
 
 		Instant now = Instant.now(clock);
 		Asset asset = new Asset(
@@ -78,7 +78,7 @@ public class AssetManagementService {
 			command.categoryId(),
 			command.manufacturerId(),
 			command.currentLocationId(),
-			command.currentAssignedUserId(),
+			command.currentAssignedPersonId(),
 			null,
 			status,
 			command.purchaseDate(),
@@ -154,7 +154,7 @@ public class AssetManagementService {
 			command.categoryId() != null ? command.categoryId() : existingAsset.categoryId(),
 			command.manufacturerId() != null ? command.manufacturerId() : existingAsset.manufacturerId(),
 			command.currentLocationId() != null ? command.currentLocationId() : existingAsset.currentLocationId(),
-			command.currentAssignedUserId() != null ? command.currentAssignedUserId() : existingAsset.currentAssignedUserId()
+			command.currentAssignedPersonId() != null ? command.currentAssignedPersonId() : existingAsset.currentAssignedPersonId()
 		);
 
 		AssetStatus status = command.status() == null ? existingAsset.status() : command.status();
@@ -170,8 +170,8 @@ public class AssetManagementService {
 			command.categoryId() != null ? command.categoryId() : existingAsset.categoryId(),
 			command.manufacturerId() != null ? command.manufacturerId() : existingAsset.manufacturerId(),
 			command.currentLocationId() != null ? command.currentLocationId() : existingAsset.currentLocationId(),
-			command.currentAssignedUserId() != null ? command.currentAssignedUserId() : existingAsset.currentAssignedUserId(),
-			existingAsset.currentAssignedUserName(),
+			command.currentAssignedPersonId() != null ? command.currentAssignedPersonId() : existingAsset.currentAssignedPersonId(),
+			existingAsset.currentAssignedPersonName(),
 			status,
 			command.purchaseDate() != null ? command.purchaseDate() : existingAsset.purchaseDate(),
 			command.warrantyExpiryDate() != null ? command.warrantyExpiryDate() : existingAsset.warrantyExpiryDate(),
@@ -212,8 +212,8 @@ public class AssetManagementService {
 			existingAsset.categoryId(),
 			existingAsset.manufacturerId(),
 			existingAsset.currentLocationId(),
-			existingAsset.currentAssignedUserId(),
-			existingAsset.currentAssignedUserName(),
+			existingAsset.currentAssignedPersonId(),
+			existingAsset.currentAssignedPersonName(),
 			command.status(),
 			existingAsset.purchaseDate(),
 			existingAsset.warrantyExpiryDate(),
@@ -274,7 +274,7 @@ public class AssetManagementService {
 		UUID categoryId,
 		UUID manufacturerId,
 		UUID currentLocationId,
-		UUID currentAssignedUserId
+		UUID currentAssignedPersonId
 	) {
 		if (categoryId != null && categoryRepository.findByIdAndOrganizationId(categoryId, organizationId).isEmpty()) {
 			throw new InvalidAssetRequestException("categoryId must belong to the same organization as the asset.");
@@ -288,11 +288,11 @@ public class AssetManagementService {
 			throw new InvalidAssetRequestException("currentLocationId must belong to the same organization as the asset.");
 		}
 
-		if (currentAssignedUserId != null) {
-			var assignedUser = userRepository.findById(currentAssignedUserId)
-				.orElseThrow(() -> new InvalidAssetRequestException("currentAssignedUserId must reference an existing user."));
-			if (assignedUser.organizationId() == null || !assignedUser.organizationId().equals(organizationId)) {
-				throw new InvalidAssetRequestException("currentAssignedUserId must belong to the same organization as the asset.");
+		if (currentAssignedPersonId != null) {
+			var assignedPerson = personRepository.findById(currentAssignedPersonId)
+				.orElseThrow(() -> new InvalidAssetRequestException("currentAssignedPersonId must reference an existing person."));
+			if (assignedPerson.organizationId() == null || !assignedPerson.organizationId().equals(organizationId)) {
+				throw new InvalidAssetRequestException("currentAssignedPersonId must belong to the same organization as the asset.");
 			}
 		}
 	}
@@ -325,8 +325,8 @@ public class AssetManagementService {
 			asset.categoryId(),
 			asset.manufacturerId(),
 			asset.currentLocationId(),
-			asset.currentAssignedUserId(),
-			asset.currentAssignedUserName(),
+			asset.currentAssignedPersonId(),
+			asset.currentAssignedPersonName(),
 			asset.status(),
 			asset.purchaseDate(),
 			asset.warrantyExpiryDate(),

@@ -13,7 +13,7 @@ import com.assetdock.api.checkout.domain.AssetCheckout;
 import com.assetdock.api.checkout.domain.AssetCheckoutRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
-import com.assetdock.api.user.domain.UserRepository;
+import com.assetdock.api.person.domain.PersonRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +30,7 @@ public class CheckoutService {
     private final AssetCheckoutRepository checkoutRepository;
     private final AssetRepository assetRepository;
     private final AuditLogService auditLogService;
-    private final UserRepository userRepository;
+    private final PersonRepository personRepository;
     private final TenantAccessService tenantAccessService;
     private final Clock clock;
 
@@ -38,14 +38,14 @@ public class CheckoutService {
         AssetCheckoutRepository checkoutRepository,
         AssetRepository assetRepository,
         AuditLogService auditLogService,
-        UserRepository userRepository,
+        PersonRepository personRepository,
         TenantAccessService tenantAccessService,
         Clock clock
     ) {
         this.checkoutRepository = checkoutRepository;
         this.assetRepository = assetRepository;
         this.auditLogService = auditLogService;
-        this.userRepository = userRepository;
+        this.personRepository = personRepository;
         this.tenantAccessService = tenantAccessService;
         this.clock = clock;
     }
@@ -62,11 +62,11 @@ public class CheckoutService {
             throw new InvalidCheckoutRequestException("Asset must be IN_STOCK to be checked out");
         }
 
-        var assignedUser = userRepository.findById(request.userId())
-            .orElseThrow(() -> new InvalidCheckoutRequestException("User not found"));
+        var assignedPerson = personRepository.findById(request.personId())
+            .orElseThrow(() -> new InvalidCheckoutRequestException("Person not found"));
 
-        if (assignedUser.organizationId() == null || !assignedUser.organizationId().equals(principal.organizationId())) {
-            throw new InvalidCheckoutRequestException("User does not belong to your organization");
+        if (assignedPerson.organizationId() == null || !assignedPerson.organizationId().equals(principal.organizationId())) {
+            throw new InvalidCheckoutRequestException("Person does not belong to your organization");
         }
 
         Instant now = Instant.now(clock);
@@ -75,7 +75,7 @@ public class CheckoutService {
             UUID.randomUUID(),
             principal.organizationId(),
             assetId,
-            request.userId(),
+            request.personId(),
             now,
             request.expectedReturnDate(),
             null,
@@ -88,8 +88,8 @@ public class CheckoutService {
         checkout = checkoutRepository.save(checkout);
 
         // H-1: Dedicated status update — avoids reconstructing the full Asset record.
-        assetRepository.updateStatusAndAssignedUser(
-            asset.id(), asset.organizationId(), AssetStatus.ASSIGNED, request.userId(), now
+        assetRepository.updateStatusAndAssignedPerson(
+            asset.id(), asset.organizationId(), AssetStatus.ASSIGNED, request.personId(), now
         );
 
         auditLogService.recordInCurrentTransaction(new AuditLogCommand(
@@ -99,7 +99,7 @@ public class CheckoutService {
             "ASSET",
             asset.id(),
             "SUCCESS",
-            Map.of("assignedTo", request.userId())
+            Map.of("assignedTo", request.personId())
         ));
 
         return mapToView(checkout);
@@ -132,7 +132,7 @@ public class CheckoutService {
             activeCheckout.id(),
             activeCheckout.organizationId(),
             activeCheckout.assetId(),
-            activeCheckout.userId(),
+            activeCheckout.personId(),
             activeCheckout.checkedOutAt(),
             activeCheckout.expectedReturnDate(),
             now,
@@ -145,7 +145,7 @@ public class CheckoutService {
         checkoutRepository.update(updatedCheckout);
 
         // H-1: Dedicated status update — avoids reconstructing the full Asset record.
-        assetRepository.updateStatusAndAssignedUser(
+        assetRepository.updateStatusAndAssignedPerson(
             asset.id(), asset.organizationId(), AssetStatus.IN_STOCK, null, now
         );
 
@@ -179,11 +179,22 @@ public class CheckoutService {
             .toList();
     }
 
+	@Transactional(readOnly = true)
+	public List<CheckoutView> getHistoryByPersonId(AuthenticatedUserPrincipal principal, UUID personId) {
+        UUID organizationId = requireActorOrganizationId(principal);
+        tenantAccessService.requireAssignmentReadAccess(principal, organizationId);
+
+        return checkoutRepository.findByPersonIdAndOrganizationIdOrderByCheckedOutAtDesc(personId, organizationId)
+            .stream()
+            .map(this::mapToView)
+            .toList();
+    }
+
     private CheckoutView mapToView(AssetCheckout checkout) {
         return new CheckoutView(
             checkout.id(),
             checkout.assetId(),
-            checkout.userId(),
+            checkout.personId(),
             checkout.checkedOutAt(),
             checkout.expectedReturnDate(),
             checkout.checkedInAt(),

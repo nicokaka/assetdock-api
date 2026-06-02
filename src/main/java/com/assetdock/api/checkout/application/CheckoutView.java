@@ -6,7 +6,7 @@ import java.util.UUID;
 public record CheckoutView(
     UUID id,
     UUID assetId,
-    UUID userId,
+    UUID personId,
     Instant checkedOutAt,
     Instant expectedReturnDate,
     Instant checkedInAt,

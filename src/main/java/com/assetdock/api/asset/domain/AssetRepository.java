@@ -27,10 +27,10 @@ public interface AssetRepository {
 	Asset update(Asset asset);
 
 	/**
-	 * Updates only the status and assigned user columns. Used by checkout/checkin
+	 * Updates only the status and assigned person columns. Used by checkout/checkin
 	 * to avoid reconstructing the full Asset record when only these two fields change.
 	 */
-	void updateStatusAndAssignedUser(UUID assetId, UUID organizationId, AssetStatus status, UUID assignedUserId, Instant updatedAt);
+	void updateStatusAndAssignedPerson(UUID assetId, UUID organizationId, AssetStatus status, UUID assignedPersonId, Instant updatedAt);
 
 	Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt);
 

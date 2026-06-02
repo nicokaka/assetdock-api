@@ -18,6 +18,8 @@ import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
 import com.assetdock.api.user.domain.UserStatus;
+import com.assetdock.api.person.domain.Person;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,6 +51,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 	private final boolean enabled;
 	private final JdbcTemplate jdbcTemplate;
 	private final UserRepository userRepository;
+	private final PersonRepository personRepository;
 	private final CategoryRepository categoryRepository;
 	private final ManufacturerRepository manufacturerRepository;
 	private final LocationRepository locationRepository;
@@ -61,6 +64,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 		@Value("${app.portfolio-seed.enabled:false}") boolean enabled,
 		JdbcTemplate jdbcTemplate,
 		UserRepository userRepository,
+		PersonRepository personRepository,
 		CategoryRepository categoryRepository,
 		ManufacturerRepository manufacturerRepository,
 		LocationRepository locationRepository,
@@ -72,6 +76,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 		this.enabled = enabled;
 		this.jdbcTemplate = jdbcTemplate;
 		this.userRepository = userRepository;
+		this.personRepository = personRepository;
 		this.categoryRepository = categoryRepository;
 		this.manufacturerRepository = manufacturerRepository;
 		this.locationRepository = locationRepository;
@@ -129,21 +134,21 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 		var hq = saveLocation(orgId, "Auckland HQ - Floor 3", "Main Office", now);
 		var remote = saveLocation(orgId, "Remote (WFH)", "Work from Home assignments", now);
 
-		// Users
-		var user1 = saveUser(orgId, "amanda.silva@assetdock.local", "Amanda Silva", now.minus(30, ChronoUnit.DAYS));
-		var user2 = saveUser(orgId, "chloe.chen@assetdock.local", "Chloe Chen", now.minus(15, ChronoUnit.DAYS));
-		var user3 = saveUser(orgId, "thomas.williams@assetdock.local", "Thomas Williams", now.minus(10, ChronoUnit.DAYS));
-		var user4 = saveUser(orgId, "alex.murphy@assetdock.local", "Alex Murphy", now.minus(5, ChronoUnit.DAYS));
+		// People
+		var person1 = savePerson(orgId, "amanda.silva@assetdock.local", "Amanda Silva", now.minus(30, ChronoUnit.DAYS));
+		var person2 = savePerson(orgId, "chloe.chen@assetdock.local", "Chloe Chen", now.minus(15, ChronoUnit.DAYS));
+		var person3 = savePerson(orgId, "thomas.williams@assetdock.local", "Thomas Williams", now.minus(10, ChronoUnit.DAYS));
+		var person4 = savePerson(orgId, "alex.murphy@assetdock.local", "Alex Murphy", now.minus(5, ChronoUnit.DAYS));
 
 		// Assets
 		var asset1 = saveAsset(orgId, "AST-MBP-001", "C02F239XMD6T", "nz-eng-mac-01",
 			"MacBook Pro 16\" M3 Max", "Engineering Team Primary",
-			macCat.id(), apple.id(), remote.id(), user1.id(),
+			macCat.id(), apple.id(), remote.id(), person1.id(),
 			AssetStatus.ASSIGNED, LocalDate.of(2023, 11, 15), now.minus(20, ChronoUnit.DAYS));
 
 		var asset2 = saveAsset(orgId, "AST-MBP-002", "C02G338YME7U", "nz-eng-mac-02",
 			"MacBook Pro 14\" M3 Pro", "Engineering Team Secondary",
-			macCat.id(), apple.id(), hq.id(), user2.id(),
+			macCat.id(), apple.id(), hq.id(), person2.id(),
 			AssetStatus.ASSIGNED, LocalDate.of(2023, 11, 20), now.minus(18, ChronoUnit.DAYS));
 
 		saveAsset(orgId, "AST-MON-001", "CN-0P1Y0K-74261", null,
@@ -153,7 +158,7 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 
 		var asset4 = saveAsset(orgId, "AST-PHN-001", "DNPG319XN732", "iPhone-Chloe",
 			"iPhone 15 Pro", "Sales Department",
-			phoneCat.id(), apple.id(), remote.id(), user2.id(),
+			phoneCat.id(), apple.id(), remote.id(), person2.id(),
 			AssetStatus.ASSIGNED, LocalDate.of(2023, 9, 25), now.minus(15, ChronoUnit.DAYS));
 
 		saveAsset(orgId, "AST-BDG-102", "NFC-993-12", null,
@@ -168,23 +173,23 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 
 		var asset7 = saveAsset(orgId, "AST-PC-001", "5P1X8Y2", "nz-fin-dell-01",
 			"Dell XPS 15", "Finance Team",
-			pcCat.id(), dell.id(), hq.id(), user4.id(),
+			pcCat.id(), dell.id(), hq.id(), person4.id(),
 			AssetStatus.RETIRED, LocalDate.of(2019, 3, 15), now.minus(40, ChronoUnit.DAYS));
 
 		// Assignments
-		saveAssignment(orgId, asset1.id(), user1.id(), adminId, now.minus(19, ChronoUnit.DAYS), null, remote.id(), "Initial provision for Engineering.");
-		saveAssignment(orgId, asset2.id(), user2.id(), adminId, now.minus(17, ChronoUnit.DAYS), null, hq.id(), "Assigned internally.");
-		saveAssignment(orgId, asset4.id(), user2.id(), adminId, now.minus(14, ChronoUnit.DAYS), null, remote.id(), "Corporate phone provision.");
-		saveAssignment(orgId, asset6.id(), user3.id(), adminId, now.minus(20, ChronoUnit.DAYS), now.minus(2, ChronoUnit.DAYS), hq.id(), "Loaner returned damaged, sent to repair.");
-		saveAssignment(orgId, asset7.id(), user4.id(), adminId, now.minus(30, ChronoUnit.DAYS), now.minus(5, ChronoUnit.DAYS), hq.id(), "User terminated. Laptop too old, retiring asset.");
+		saveAssignment(orgId, asset1.id(), person1.id(), adminId, now.minus(19, ChronoUnit.DAYS), null, remote.id(), "Initial provision for Engineering.");
+		saveAssignment(orgId, asset2.id(), person2.id(), adminId, now.minus(17, ChronoUnit.DAYS), null, hq.id(), "Assigned internally.");
+		saveAssignment(orgId, asset4.id(), person2.id(), adminId, now.minus(14, ChronoUnit.DAYS), null, remote.id(), "Corporate phone provision.");
+		saveAssignment(orgId, asset6.id(), person3.id(), adminId, now.minus(20, ChronoUnit.DAYS), now.minus(2, ChronoUnit.DAYS), hq.id(), "Loaner returned damaged, sent to repair.");
+		saveAssignment(orgId, asset7.id(), person4.id(), adminId, now.minus(30, ChronoUnit.DAYS), now.minus(5, ChronoUnit.DAYS), hq.id(), "User terminated. Laptop too old, retiring asset.");
 
 		// Audit logs
-		saveAudit(orgId, adminId, AuditEventType.USER_CREATED, "USER", user1.id(), Map.of("email", "amanda.silva@assetdock.local"), now.minus(30, ChronoUnit.DAYS));
+		saveAudit(orgId, adminId, AuditEventType.USER_CREATED, "USER", person1.id(), Map.of("email", "amanda.silva@assetdock.local"), now.minus(30, ChronoUnit.DAYS));
 		saveAudit(orgId, adminId, AuditEventType.ASSET_CREATED, "ASSET", asset1.id(), Map.of("asset_tag", "AST-MBP-001"), now.minus(20, ChronoUnit.DAYS));
-		saveAudit(orgId, adminId, AuditEventType.ASSET_ASSIGNED, "ASSET", asset1.id(), Map.of("assigned_to_user_id", user1.id().toString()), now.minus(19, ChronoUnit.DAYS));
+		saveAudit(orgId, adminId, AuditEventType.ASSET_ASSIGNED, "ASSET", asset1.id(), Map.of("assigned_to_person_id", person1.id().toString()), now.minus(19, ChronoUnit.DAYS));
 		saveAudit(orgId, adminId, AuditEventType.ASSET_UPDATED, "ASSET", asset6.id(), Map.of("old_status", "IN_STOCK", "new_status", "IN_MAINTENANCE"), now.minus(2, ChronoUnit.DAYS));
 		saveAudit(orgId, adminId, AuditEventType.ASSET_UNASSIGNED, "ASSET", asset7.id(), Map.of(), now.minus(5, ChronoUnit.DAYS));
-		saveAudit(orgId, adminId, AuditEventType.USER_UPDATED, "USER", user4.id(), Map.of("old_status", "ACTIVE", "new_status", "INACTIVE"), now.minus(4, ChronoUnit.DAYS));
+		saveAudit(orgId, adminId, AuditEventType.USER_UPDATED, "USER", person4.id(), Map.of("old_status", "ACTIVE", "new_status", "INACTIVE"), now.minus(4, ChronoUnit.DAYS));
 		saveAudit(orgId, adminId, AuditEventType.LOGIN_SUCCESS, "USER", adminId, Map.of(), now.minus(120, ChronoUnit.MINUTES));
 
 		LOGGER.info("portfolio_seed status=completed org_id={}", orgId);
@@ -202,31 +207,31 @@ public class PortfolioSeedRunner implements ApplicationRunner {
 		return locationRepository.save(new Location(UUID.randomUUID(), orgId, name, description, true, now, now));
 	}
 
-	private User saveUser(UUID orgId, String email, String fullName, Instant createdAt) {
-		var user = new User(UUID.randomUUID(), orgId, email, fullName, "dummy-not-login", UserStatus.ACTIVE, Set.of(UserRole.VIEWER), 0, null, createdAt, createdAt);
-		return userRepository.save(user);
+	private Person savePerson(UUID orgId, String email, String fullName, Instant createdAt) {
+		var person = new Person(UUID.randomUUID(), orgId, fullName, email, "Engineering", true, createdAt, createdAt);
+		return personRepository.save(person);
 	}
 
 	private Asset saveAsset(
 		UUID orgId, String tag, String serial, String hostname,
 		String displayName, String description,
-		UUID categoryId, UUID manufacturerId, UUID locationId, UUID assignedUserId,
+		UUID categoryId, UUID manufacturerId, UUID locationId, UUID assignedPersonId,
 		AssetStatus status, LocalDate purchaseDate, Instant createdAt
 	) {
 		return assetRepository.save(new Asset(
 			UUID.randomUUID(), orgId, tag, serial, hostname,
 			displayName, description,
-			categoryId, manufacturerId, locationId, assignedUserId, null,
+			categoryId, manufacturerId, locationId, assignedPersonId, null,
 			status, purchaseDate, null, null, createdAt, createdAt
 		));
 	}
 
 	private void saveAssignment(
-		UUID orgId, UUID assetId, UUID userId, UUID assignedBy,
+		UUID orgId, UUID assetId, UUID personId, UUID assignedBy,
 		Instant assignedAt, Instant unassignedAt, UUID locationId, String notes
 	) {
 		assetAssignmentRepository.save(new AssetAssignment(
-			UUID.randomUUID(), orgId, assetId, userId, locationId,
+			UUID.randomUUID(), orgId, assetId, personId, locationId,
 			assignedAt, unassignedAt, assignedBy, notes, assignedAt
 		));
 	}

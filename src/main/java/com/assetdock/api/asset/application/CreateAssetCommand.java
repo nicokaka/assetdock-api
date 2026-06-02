@@ -13,7 +13,7 @@ public record CreateAssetCommand(
 	UUID categoryId,
 	UUID manufacturerId,
 	UUID currentLocationId,
-	UUID currentAssignedUserId,
+	UUID currentAssignedPersonId,
 	AssetStatus status,
 	LocalDate purchaseDate,
 	LocalDate warrantyExpiryDate

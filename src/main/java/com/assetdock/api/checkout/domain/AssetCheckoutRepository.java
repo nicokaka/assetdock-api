@@ -12,7 +12,7 @@ public interface AssetCheckoutRepository {
 
     List<AssetCheckout> findByAssetIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID assetId, UUID organizationId);
 
-    List<AssetCheckout> findByUserIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID userId, UUID organizationId);
+    List<AssetCheckout> findByPersonIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID personId, UUID organizationId);
 
     /**
      * Returns the single active (not yet checked-in) checkout record for the given asset,

@@ -6,7 +6,7 @@ import java.util.UUID;
 public record AssetAssignmentView(
 	UUID id,
 	UUID assetId,
-	UUID userId,
+	UUID personId,
 	UUID locationId,
 	Instant assignedAt,
 	Instant unassignedAt,

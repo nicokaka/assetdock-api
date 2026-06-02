@@ -62,7 +62,7 @@ public class AssetController {
 				request.categoryId(),
 				request.manufacturerId(),
 				request.currentLocationId(),
-				request.currentAssignedUserId(),
+				request.currentAssignedPersonId(),
 				request.status(),
 				request.purchaseDate(),
 				request.warrantyExpiryDate()
@@ -109,7 +109,7 @@ public class AssetController {
 				request.categoryId(),
 				request.manufacturerId(),
 				request.currentLocationId(),
-				request.currentAssignedUserId(),
+				request.currentAssignedPersonId(),
 				request.status(),
 				request.purchaseDate(),
 				request.warrantyExpiryDate()

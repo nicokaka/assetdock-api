@@ -28,7 +28,7 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 				id,
 				organization_id,
 				asset_id,
-				user_id,
+				person_id,
 				location_id,
 				assigned_at,
 				unassigned_at,
@@ -40,7 +40,7 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 				:id,
 				:organizationId,
 				:assetId,
-				:userId,
+				:personId,
 				:locationId,
 				:assignedAt,
 				:unassignedAt,
@@ -52,7 +52,7 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 			.param("id", assignment.id())
 			.param("organizationId", assignment.organizationId())
 			.param("assetId", assignment.assetId())
-			.param("userId", assignment.userId())
+			.param("personId", assignment.personId())
 			.param("locationId", assignment.locationId())
 			.param("assignedAt", JdbcColumnReaders.toOffsetDateTime(assignment.assignedAt()))
 			.param("unassignedAt", JdbcColumnReaders.toOffsetDateTime(assignment.unassignedAt()))
@@ -120,7 +120,7 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 
 	private String baseSelect() {
 		return """
-			SELECT id, organization_id, asset_id, user_id, location_id, assigned_at, unassigned_at, assigned_by, notes, created_at
+			SELECT id, organization_id, asset_id, person_id, location_id, assigned_at, unassigned_at, assigned_by, notes, created_at
 			FROM asset_assignments
 			""";
 	}
@@ -130,7 +130,7 @@ public class JdbcAssetAssignmentRepository implements AssetAssignmentRepository 
 			resultSet.getObject("id", UUID.class),
 			resultSet.getObject("organization_id", UUID.class),
 			resultSet.getObject("asset_id", UUID.class),
-			resultSet.getObject("user_id", UUID.class),
+			resultSet.getObject("person_id", UUID.class),
 			resultSet.getObject("location_id", UUID.class),
 			JdbcColumnReaders.getInstant(resultSet, "assigned_at"),
 			JdbcColumnReaders.getInstant(resultSet, "unassigned_at"),

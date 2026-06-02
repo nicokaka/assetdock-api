@@ -4,7 +4,7 @@ import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.asset.domain.AssetStatus;
 import com.assetdock.api.checkout.domain.AssetCheckoutRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
-import com.assetdock.api.user.domain.UserRepository;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -13,15 +13,15 @@ import org.springframework.stereotype.Service;
 public class DashboardQueryService {
 
 	private final AssetRepository assetRepository;
-	private final UserRepository userRepository;
+	private final PersonRepository personRepository;
 	private final AssetCheckoutRepository checkoutRepository;
 
 	public DashboardQueryService(
 			AssetRepository assetRepository,
-			UserRepository userRepository,
+			PersonRepository personRepository,
 			AssetCheckoutRepository checkoutRepository) {
 		this.assetRepository = assetRepository;
-		this.userRepository = userRepository;
+		this.personRepository = personRepository;
 		this.checkoutRepository = checkoutRepository;
 	}
 
@@ -42,8 +42,8 @@ public class DashboardQueryService {
 		int inMaintenanceAssets = assetCounts.getOrDefault(AssetStatus.IN_MAINTENANCE, 0);
 		int retiredAssets = assetCounts.getOrDefault(AssetStatus.RETIRED, 0);
 		
-		int totalUsers = userRepository.countTotalUsersForOrganization(orgId);
-		int activeUsers = userRepository.countActiveUsersForOrganization(orgId);
+		int totalPeople = (int) personRepository.countForOrganization(orgId, null, null);
+		int activePeople = (int) personRepository.countForOrganization(orgId, null, true);
 		int activeCheckouts = checkoutRepository.countActiveCheckoutsForOrganization(orgId);
 		
 		return new DashboardStatsView(
@@ -52,8 +52,8 @@ public class DashboardQueryService {
 			inStockAssets,
 			inMaintenanceAssets,
 			retiredAssets,
-			totalUsers,
-			activeUsers,
+			totalPeople,
+			activePeople,
 			activeCheckouts
 		);
 	}

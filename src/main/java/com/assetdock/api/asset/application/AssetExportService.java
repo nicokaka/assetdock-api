@@ -37,7 +37,7 @@ public class AssetExportService {
 		try (OutputStreamWriter writer = new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
 			 CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.builder().setHeader(
 				 "Asset Tag", "Display Name", "Status", "Serial Number", "Hostname", "Description",
-				 "Category ID", "Manufacturer ID", "Location ID", "Assigned User ID",
+				 "Category ID", "Manufacturer ID", "Location ID", "Assigned Person ID",
 				 "Purchase Date", "Warranty Expiry"
 			 ).build())) {
 
@@ -55,7 +55,7 @@ public class AssetExportService {
 						asset.categoryId(),
 						asset.manufacturerId(),
 						asset.currentLocationId(),
-						asset.currentAssignedUserId(),
+						asset.currentAssignedPersonId(),
 						asset.purchaseDate(),
 						asset.warrantyExpiryDate()
 					);

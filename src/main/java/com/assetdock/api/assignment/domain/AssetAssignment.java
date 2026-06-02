@@ -7,7 +7,7 @@ public record AssetAssignment(
 	UUID id,
 	UUID organizationId,
 	UUID assetId,
-	UUID userId,
+	UUID personId,
 	UUID locationId,
 	Instant assignedAt,
 	Instant unassignedAt,

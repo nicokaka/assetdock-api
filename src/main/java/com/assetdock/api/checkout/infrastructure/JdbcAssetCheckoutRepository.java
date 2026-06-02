@@ -28,7 +28,7 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
                 id,
                 organization_id,
                 asset_id,
-                user_id,
+                person_id,
                 checked_out_at,
                 expected_return_date,
                 checked_in_at,
@@ -40,7 +40,7 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
                 :id,
                 :organizationId,
                 :assetId,
-                :userId,
+                :personId,
                 :checkedOutAt,
                 :expectedReturnDate,
                 :checkedInAt,
@@ -53,7 +53,7 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
             .param("id", checkout.id())
             .param("organizationId", checkout.organizationId())
             .param("assetId", checkout.assetId())
-            .param("userId", checkout.userId())
+            .param("personId", checkout.personId())
             .param("checkedOutAt", checkout.checkedOutAt())
             .param("expectedReturnDate", checkout.expectedReturnDate())
             .param("checkedInAt", checkout.checkedInAt())
@@ -113,13 +113,13 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
     }
 
     @Override
-    public List<AssetCheckout> findByUserIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID userId, UUID organizationId) {
+    public List<AssetCheckout> findByPersonIdAndOrganizationIdOrderByCheckedOutAtDesc(UUID personId, UUID organizationId) {
         return jdbcClient.sql("""
             SELECT * FROM asset_checkouts 
-            WHERE user_id = :userId AND organization_id = :organizationId
+            WHERE person_id = :personId AND organization_id = :organizationId
             ORDER BY checked_out_at DESC
             """)
-            .param("userId", userId)
+            .param("personId", personId)
             .param("organizationId", organizationId)
             .query(this::mapRow)
             .list();
@@ -143,7 +143,7 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
             rs.getObject("id", UUID.class),
             rs.getObject("organization_id", UUID.class),
             rs.getObject("asset_id", UUID.class),
-            rs.getObject("user_id", UUID.class),
+            rs.getObject("person_id", UUID.class),
             JdbcColumnReaders.getInstant(rs, "checked_out_at"),
             JdbcColumnReaders.getInstant(rs, "expected_return_date"),
             JdbcColumnReaders.getInstant(rs, "checked_in_at"),
