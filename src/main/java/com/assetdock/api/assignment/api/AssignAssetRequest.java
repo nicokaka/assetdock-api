@@ -4,8 +4,8 @@ import jakarta.validation.constraints.NotNull;
 import java.util.UUID;
 
 public record AssignAssetRequest(
-	@NotNull(message = "userId is required")
-	UUID userId,
+	@NotNull(message = "personId is required")
+	UUID personId,
 	UUID locationId,
 	String notes
 ) {

@@ -101,23 +101,23 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
-                                  "userId": "%s",
+                                  "personId": "%s",
                                   "notes": "Field visit"
                                 }
                                 """.formatted(USER_1)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.assetId").value(ASSET_IN_STOCK.toString()))
-                .andExpect(jsonPath("$.userId").value(USER_1.toString()))
+                .andExpect(jsonPath("$.personId").value(USER_1.toString()))
                 .andExpect(jsonPath("$.checkedOutAt").isNotEmpty())
                 .andExpect(jsonPath("$.checkedInAt").value(nullValue()))
                 .andExpect(jsonPath("$.checkedOutBy").value(ORG_ADMIN_1.toString()));
 
         // 2. Asset status must be ASSIGNED after checkout
         Map<String, Object> assetSnapshot = jdbcTemplate.queryForMap(
-                "SELECT status, current_assigned_user_id FROM assets WHERE id = ?", ASSET_IN_STOCK);
+                "SELECT status, current_assigned_person_id FROM assets WHERE id = ?", ASSET_IN_STOCK);
         assertThat(assetSnapshot)
                 .containsEntry("status", "ASSIGNED")
-                .containsEntry("current_assigned_user_id", USER_1);
+                .containsEntry("current_assigned_person_id", USER_1);
 
         // 3. Checkin
         mockMvc.perform(post("/assets/{id}/checkin", ASSET_IN_STOCK)
@@ -134,10 +134,10 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
 
         // 4. Asset status must be IN_STOCK after checkin, user cleared
         Map<String, Object> assetAfterCheckin = jdbcTemplate.queryForMap(
-                "SELECT status, current_assigned_user_id FROM assets WHERE id = ?", ASSET_IN_STOCK);
+                "SELECT status, current_assigned_person_id FROM assets WHERE id = ?", ASSET_IN_STOCK);
         assertThat(assetAfterCheckin)
                 .containsEntry("status", "IN_STOCK")
-                .containsEntry("current_assigned_user_id", null);
+                .containsEntry("current_assigned_person_id", null);
     }
 
     @Test
@@ -148,7 +148,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isCreated());
 
@@ -189,7 +189,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isCreated());
 
@@ -225,7 +225,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(viewerToken))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isForbidden());
 
@@ -249,7 +249,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isBadRequest());
 
@@ -258,7 +258,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isBadRequest());
     }
@@ -286,7 +286,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_ORG_2)))
                 .andExpect(status().isBadRequest());
     }
@@ -318,7 +318,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                         .header(AUTHORIZATION, bearer(token))
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isNotFound());
     }
@@ -341,7 +341,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(post("/assets/{id}/checkout", ASSET_IN_STOCK)
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"userId": "%s"}
+                                {"personId": "%s"}
                                 """.formatted(USER_1)))
                 .andExpect(status().isUnauthorized());
 
@@ -399,6 +399,11 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                 INSERT INTO user_roles (user_id, role) VALUES (?, ?::user_role)
                 """,
                 userId, role);
+        jdbcTemplate.update("""
+                INSERT INTO people (id, organization_id, full_name, email, active)
+                VALUES (?, ?, ?, ?, true)
+                """,
+                userId, orgId, email, email);
     }
 
     private void insertCategory(UUID id, UUID orgId, String name) {
@@ -427,27 +432,27 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
 
     private void insertAsset(UUID id, UUID orgId, String tag,
                              UUID categoryId, UUID manufacturerId, UUID locationId,
-                             UUID assignedUserId, String status) {
+                             UUID assignedPersonId, String status) {
         jdbcTemplate.update("""
                 INSERT INTO assets (
                     id, organization_id, asset_tag, display_name,
                     category_id, manufacturer_id, current_location_id,
-                    current_assigned_user_id, status, created_at, updated_at
+                    current_assigned_person_id, status, created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS asset_status), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """,
                 id, orgId, tag, tag,
                 categoryId, manufacturerId, locationId,
-                assignedUserId, status);
+                assignedPersonId, status);
     }
 
-    private void insertActiveCheckout(UUID id, UUID orgId, UUID assetId, UUID userId, UUID checkedOutBy) {
+    private void insertActiveCheckout(UUID id, UUID orgId, UUID assetId, UUID personId, UUID checkedOutBy) {
         jdbcTemplate.update("""
                 INSERT INTO asset_checkouts (
-                    id, organization_id, asset_id, user_id,
+                    id, organization_id, asset_id, person_id,
                     checked_out_at, checked_out_by, created_at
                 ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)
                 """,
-                id, orgId, assetId, userId, checkedOutBy);
+                id, orgId, assetId, personId, checkedOutBy);
     }
 
     private void cleanDatabase() {
@@ -460,6 +465,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
         jdbcTemplate.update("DELETE FROM locations");
         jdbcTemplate.update("DELETE FROM user_roles");
         jdbcTemplate.update("DELETE FROM users");
+        jdbcTemplate.update("DELETE FROM people");
         jdbcTemplate.update("DELETE FROM organizations");
     }
 }

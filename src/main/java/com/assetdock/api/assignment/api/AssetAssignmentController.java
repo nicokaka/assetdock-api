@@ -37,7 +37,7 @@ public class AssetAssignmentController {
 		return assetAssignmentManagementService.assign(
 			principal,
 			assetId,
-			new AssignAssetCommand(request.userId(), request.locationId(), request.notes())
+			new AssignAssetCommand(request.personId(), request.locationId(), request.notes())
 		);
 	}
 

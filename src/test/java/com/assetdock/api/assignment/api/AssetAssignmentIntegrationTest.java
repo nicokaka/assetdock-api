@@ -103,22 +103,22 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s",
+					  "personId": "%s",
 					  "locationId": "%s",
 					  "notes": "Primary allocation"
 					}
 					""".formatted(USER_1, LOCATION_1)))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.assetId").value(ASSET_AVAILABLE_1.toString()))
-			.andExpect(jsonPath("$.userId").value(USER_1.toString()));
+			.andExpect(jsonPath("$.personId").value(USER_1.toString()));
 
 		Map<String, Object> snapshot = jdbcTemplate.queryForMap("""
-			SELECT current_assigned_user_id, current_location_id, status
+			SELECT current_assigned_person_id, current_location_id, status
 			FROM assets
 			WHERE id = ?
 			""", ASSET_AVAILABLE_1);
 		org.assertj.core.api.Assertions.assertThat(snapshot)
-			.containsEntry("current_assigned_user_id", USER_1)
+			.containsEntry("current_assigned_person_id", USER_1)
 			.containsEntry("current_location_id", LOCATION_1)
 			.containsEntry("status", "ASSIGNED");
 	}
@@ -134,12 +134,12 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 			.andExpect(jsonPath("$.unassignedAt").isNotEmpty());
 
 		Map<String, Object> snapshot = jdbcTemplate.queryForMap("""
-			SELECT current_assigned_user_id, status
+			SELECT current_assigned_person_id, status
 			FROM assets
 			WHERE id = ?
 			""", ASSET_ASSIGNED_1);
 		org.assertj.core.api.Assertions.assertThat(snapshot)
-			.containsEntry("current_assigned_user_id", null)
+			.containsEntry("current_assigned_person_id", null)
 			.containsEntry("status", "IN_STOCK");
 	}
 
@@ -173,7 +173,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_1)))
 			.andExpect(status().isForbidden());
@@ -232,7 +232,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_1)))
 			.andExpect(status().isCreated());
@@ -263,7 +263,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_1)))
 			.andExpect(status().isBadRequest());
@@ -278,7 +278,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_1)))
 			.andExpect(status().isBadRequest())
@@ -294,22 +294,22 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_INACTIVE_1)))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.detail").value("userId must reference an ACTIVE user."));
+			.andExpect(jsonPath("$.detail").value("personId must reference an active person."));
 
 		mockMvc.perform(post("/assets/{id}/assignments", ASSET_AVAILABLE_1)
 				.header(AUTHORIZATION, bearer(token))
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_LOCKED_1)))
 			.andExpect(status().isBadRequest())
-			.andExpect(jsonPath("$.detail").value("userId must reference an ACTIVE user."));
+			.andExpect(jsonPath("$.detail").value("personId must reference an active person."));
 	}
 
 	@Test
@@ -321,7 +321,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s",
+					  "personId": "%s",
 					  "locationId": "%s"
 					}
 					""".formatted(USER_1, LOCATION_INACTIVE_1)))
@@ -338,7 +338,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 				.contentType(APPLICATION_JSON)
 				.content("""
 					{
-					  "userId": "%s"
+					  "personId": "%s"
 					}
 					""".formatted(USER_1)))
 			.andExpect(status().isConflict());
@@ -418,6 +418,18 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 			userId,
 			role
 		);
+
+		jdbcTemplate.update(
+			"""
+				INSERT INTO people (id, organization_id, full_name, email, active)
+				VALUES (?, ?, ?, ?, ?)
+				""",
+			userId,
+			organizationId,
+			email,
+			email,
+			"ACTIVE".equals(status)
+		);
 	}
 
 	private void insertCategory(UUID id, UUID organizationId, String name) {
@@ -492,7 +504,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 		UUID categoryId,
 		UUID manufacturerId,
 		UUID locationId,
-		UUID currentAssignedUserId,
+		UUID currentAssignedPersonId,
 		String status,
 		java.time.Instant archivedAt
 	) {
@@ -506,7 +518,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 					category_id,
 					manufacturer_id,
 					current_location_id,
-					current_assigned_user_id,
+					current_assigned_person_id,
 					status,
 					archived_at,
 					created_at,
@@ -521,7 +533,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 			categoryId,
 			manufacturerId,
 			locationId,
-			currentAssignedUserId,
+			currentAssignedPersonId,
 			status,
 			archivedAt == null ? null : archivedAt.atOffset(java.time.ZoneOffset.UTC)
 		);
@@ -531,7 +543,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 		UUID id,
 		UUID organizationId,
 		UUID assetId,
-		UUID userId,
+		UUID personId,
 		UUID locationId,
 		UUID assignedBy
 	) {
@@ -541,7 +553,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 					id,
 					organization_id,
 					asset_id,
-					user_id,
+					person_id,
 					location_id,
 					assigned_at,
 					assigned_by,
@@ -553,7 +565,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 			id,
 			organizationId,
 			assetId,
-			userId,
+			personId,
 			locationId,
 			assignedBy,
 			"Assigned for daily use"
@@ -564,7 +576,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 		UUID id,
 		UUID organizationId,
 		UUID assetId,
-		UUID userId,
+		UUID personId,
 		UUID locationId,
 		UUID assignedBy,
 		int minutesAgo
@@ -575,7 +587,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 					id,
 					organization_id,
 					asset_id,
-					user_id,
+					person_id,
 					location_id,
 					assigned_at,
 					unassigned_at,
@@ -588,7 +600,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 			id,
 			organizationId,
 			assetId,
-			userId,
+			personId,
 			locationId,
 			minutesAgo + 1,
 			minutesAgo,
@@ -607,6 +619,7 @@ class AssetAssignmentIntegrationTest extends AbstractIntegrationTest {
 		jdbcTemplate.update("DELETE FROM locations");
 		jdbcTemplate.update("DELETE FROM user_roles");
 		jdbcTemplate.update("DELETE FROM users");
+		jdbcTemplate.update("DELETE FROM people");
 		jdbcTemplate.update("DELETE FROM organizations");
 	}
 }
