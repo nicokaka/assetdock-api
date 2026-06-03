@@ -100,7 +100,7 @@ public class AssetManagementService {
 	@Transactional(readOnly = true)
 	public AssetPageView list(AuthenticatedUserPrincipal actor, Integer page, Integer size, String status, String search, UUID categoryId, UUID locationId) {
 		int actualPage = page != null && page > 0 ? page : 1;
-		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
+		int actualSize = size != null && size > 0 && size <= 1000 ? size : 20;
 		int offset = (actualPage - 1) * actualSize;
 
 		if (actor.isSuperAdmin()) {
