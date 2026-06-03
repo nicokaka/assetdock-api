@@ -106,7 +106,7 @@ class WebSessionCsrfIntegrationTest extends AbstractIntegrationTest {
 	}
 
 	private MvcResult performWebLogin() throws Exception {
-		return mockMvc.perform(post("/api/v1/web/auth/login")
+		return mockMvc.perform(post("/web/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""

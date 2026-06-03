@@ -101,7 +101,7 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 					  "categoryId": "%s",
 					  "manufacturerId": "%s",
 					  "currentLocationId": "%s",
-					  "currentAssignedUserId": "%s"
+					  "currentAssignedPersonId": "%s"
 					}
 					""".formatted(CATEGORY_1, MANUFACTURER_1, LOCATION_1, ASSIGNED_USER_1)))
 			.andExpect(status().isCreated())
@@ -193,7 +193,7 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 		mockMvc.perform(get("/assets")
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].assetTag").value("AST-001"));
+			.andExpect(jsonPath("$.items[0].assetTag").value("AST-001"));
 
 		mockMvc.perform(get("/assets/{id}", ASSET_1)
 				.header(AUTHORIZATION, bearer(token)))
@@ -208,7 +208,7 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 		mockMvc.perform(get("/assets")
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$[0].assetTag").value("AST-001"));
+			.andExpect(jsonPath("$.items[0].assetTag").value("AST-001"));
 
 		mockMvc.perform(get("/assets/{id}", ASSET_1)
 				.header(AUTHORIZATION, bearer(token)))
@@ -269,10 +269,10 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 
 		String token = login("viewer1@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(get("/assets")
+		mockMvc.perform(get("/assets?size=100")
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$", hasSize(100)));
+			.andExpect(jsonPath("$.items", hasSize(100)));
 	}
 
 	@Test
@@ -453,6 +453,17 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 			userId,
 			role
 		);
+
+		jdbcTemplate.update(
+			"""
+				INSERT INTO people (id, organization_id, full_name, email, active)
+				VALUES (?, ?, ?, ?, true)
+				""",
+			userId,
+			organizationId,
+			email,
+			email
+		);
 	}
 
 	private void insertCategory(UUID id, UUID organizationId, String name) {
@@ -511,7 +522,7 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 					category_id,
 					manufacturer_id,
 					current_location_id,
-					current_assigned_user_id,
+					current_assigned_person_id,
 					status,
 					created_at,
 					updated_at
@@ -538,6 +549,7 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 		jdbcTemplate.update("DELETE FROM locations");
 		jdbcTemplate.update("DELETE FROM user_roles");
 		jdbcTemplate.update("DELETE FROM users");
+		jdbcTemplate.update("DELETE FROM people");
 		jdbcTemplate.update("DELETE FROM organizations");
 	}
 }

@@ -19,6 +19,8 @@ import com.assetdock.api.setup.application.SystemAlreadyConfiguredException;
 import com.assetdock.api.user.application.EmailAlreadyInUseException;
 import com.assetdock.api.user.application.InvalidUserRequestException;
 import com.assetdock.api.user.application.UserNotFoundException;
+import com.assetdock.api.person.application.PersonNotFoundException;
+import com.assetdock.api.person.application.InvalidPersonRequestException;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Map;
@@ -214,6 +216,35 @@ public class GlobalExceptionHandler {
 		);
 
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
+	@ExceptionHandler(PersonNotFoundException.class)
+	ResponseEntity<ProblemDetail> handlePersonNotFound(PersonNotFoundException exception, WebRequest request) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.NOT_FOUND,
+			"Person not found",
+			"The requested person does not exist.",
+			"urn:assetdock:problem:person-not-found",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
+	@ExceptionHandler(InvalidPersonRequestException.class)
+	ResponseEntity<ProblemDetail> handleInvalidPersonRequest(
+		InvalidPersonRequestException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.BAD_REQUEST,
+			"Invalid person request",
+			exception.getMessage(),
+			"urn:assetdock:problem:invalid-person-request",
+			extractPath(request)
+		);
+
+		return ResponseEntity.badRequest().body(problemDetail);
 	}
 
 	@ExceptionHandler(AssetNotFoundException.class)

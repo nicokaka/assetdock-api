@@ -96,7 +96,7 @@ public class CheckoutService {
             principal.organizationId(),
             principal.userId(),
             AuditEventType.ASSET_CHECKED_OUT,
-            "ASSET",
+            "asset",
             asset.id(),
             "SUCCESS",
             Map.of("assignedTo", request.personId())
@@ -153,7 +153,7 @@ public class CheckoutService {
             principal.organizationId(),
             principal.userId(),
             AuditEventType.ASSET_CHECKED_IN,
-            "ASSET",
+            "asset",
             asset.id(),
             "SUCCESS",
             Map.of("notes", request.notes() != null ? request.notes() : "")

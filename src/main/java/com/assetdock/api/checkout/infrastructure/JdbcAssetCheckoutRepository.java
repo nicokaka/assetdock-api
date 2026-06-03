@@ -54,13 +54,13 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
             .param("organizationId", checkout.organizationId())
             .param("assetId", checkout.assetId())
             .param("personId", checkout.personId())
-            .param("checkedOutAt", checkout.checkedOutAt())
-            .param("expectedReturnDate", checkout.expectedReturnDate())
-            .param("checkedInAt", checkout.checkedInAt())
+            .param("checkedOutAt", JdbcColumnReaders.toOffsetDateTime(checkout.checkedOutAt()))
+            .param("expectedReturnDate", JdbcColumnReaders.toOffsetDateTime(checkout.expectedReturnDate()))
+            .param("checkedInAt", JdbcColumnReaders.toOffsetDateTime(checkout.checkedInAt()))
             .param("checkedOutBy", checkout.checkedOutBy())
             .param("checkedInBy", checkout.checkedInBy())
             .param("notes", checkout.notes())
-            .param("createdAt", checkout.createdAt())
+            .param("createdAt", JdbcColumnReaders.toOffsetDateTime(checkout.createdAt()))
             .update();
 
         return checkout;
@@ -76,7 +76,7 @@ public class JdbcAssetCheckoutRepository implements AssetCheckoutRepository {
             WHERE id = :id
             """)
             .param("id", checkout.id())
-            .param("checkedInAt", checkout.checkedInAt())
+            .param("checkedInAt", JdbcColumnReaders.toOffsetDateTime(checkout.checkedInAt()))
             .param("checkedInBy", checkout.checkedInBy())
             .param("notes", checkout.notes())
             .update();

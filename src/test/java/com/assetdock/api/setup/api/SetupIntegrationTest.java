@@ -20,7 +20,7 @@ class SetupIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void setupStatus_returnsConfiguredBasedOnOrganizationExistence() throws Exception {
-		mockMvc.perform(get("/api/v1/setup/status"))
+		mockMvc.perform(get("/setup/status"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.configured").isBoolean());
 	}
@@ -36,7 +36,7 @@ class SetupIntegrationTest extends AbstractIntegrationTest {
 			}
 			""";
 
-		MvcResult result = mockMvc.perform(post("/api/v1/setup")
+		MvcResult result = mockMvc.perform(post("/setup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody))
 			.andReturn();
@@ -59,7 +59,7 @@ class SetupIntegrationTest extends AbstractIntegrationTest {
 			}
 			""";
 
-		mockMvc.perform(post("/api/v1/setup")
+		mockMvc.perform(post("/setup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(requestBody))
 			.andExpect(status().isBadRequest());
@@ -67,13 +67,13 @@ class SetupIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void setup_doesNotRequireAuthentication() throws Exception {
-		mockMvc.perform(get("/api/v1/setup/status"))
+		mockMvc.perform(get("/setup/status"))
 			.andExpect(status().isOk());
 	}
 
 	@Test
 	void setup_withMissingBody_returns400() throws Exception {
-		mockMvc.perform(post("/api/v1/setup")
+		mockMvc.perform(post("/setup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{}"))
 			.andExpect(status().isBadRequest());

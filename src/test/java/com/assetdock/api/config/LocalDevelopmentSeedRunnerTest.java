@@ -5,6 +5,7 @@ import com.assetdock.api.organization.domain.OrganizationRepository;
 import com.assetdock.api.user.application.InvalidUserRequestException;
 import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -35,6 +36,9 @@ class LocalDevelopmentSeedRunnerTest {
 	@Mock
 	private UserRepository userRepository;
 
+	@Mock
+	private PersonRepository personRepository;
+
 	private PasswordEncoder passwordEncoder;
 
 	@BeforeEach
@@ -55,6 +59,7 @@ class LocalDevelopmentSeedRunnerTest {
 			),
 			organizationRepository,
 			userRepository,
+			personRepository,
 			passwordEncoder,
 			Clock.fixed(Instant.parse("2026-03-18T12:00:00Z"), ZoneOffset.UTC)
 		);
@@ -84,6 +89,7 @@ class LocalDevelopmentSeedRunnerTest {
 			),
 			organizationRepository,
 			userRepository,
+			personRepository,
 			passwordEncoder,
 			Clock.systemUTC()
 		);

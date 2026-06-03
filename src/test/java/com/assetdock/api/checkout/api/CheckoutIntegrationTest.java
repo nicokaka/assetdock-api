@@ -109,7 +109,7 @@ class CheckoutIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.assetId").value(ASSET_IN_STOCK.toString()))
                 .andExpect(jsonPath("$.personId").value(USER_1.toString()))
                 .andExpect(jsonPath("$.checkedOutAt").isNotEmpty())
-                .andExpect(jsonPath("$.checkedInAt").value(nullValue()))
+                .andExpect(jsonPath("$.checkedInAt").doesNotExist())
                 .andExpect(jsonPath("$.checkedOutBy").value(ORG_ADMIN_1.toString()));
 
         // 2. Asset status must be ASSIGNED after checkout

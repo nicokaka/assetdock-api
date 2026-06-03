@@ -21,7 +21,7 @@ class PublicEndpointsSecurityIntegrationTest extends AbstractIntegrationTest {
         // Se retornar 403: Spring Security bloqueou a rota indevidamente (Falha/Regressao).
         mockMvc.perform(post("/web/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"x\",\"password\":\"y\"}"))
+                .content("{\"email\":\"x@x.com\",\"password\":\"y\"}"))
             .andExpect(status().isUnauthorized());
     }
 

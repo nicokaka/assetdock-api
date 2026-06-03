@@ -13,6 +13,8 @@ import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
 import com.assetdock.api.user.domain.UserStatus;
+import com.assetdock.api.person.domain.Person;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -37,6 +39,7 @@ public class UserManagementService {
 	private final PasswordEncoder passwordEncoder;
 	private final AuditLogService auditLogService;
 	private final WebSessionRepository webSessionRepository;
+	private final PersonRepository personRepository;
 	private final Clock clock;
 
 	public UserManagementService(
@@ -46,6 +49,7 @@ public class UserManagementService {
 		PasswordEncoder passwordEncoder,
 		AuditLogService auditLogService,
 		WebSessionRepository webSessionRepository,
+		PersonRepository personRepository,
 		Clock clock
 	) {
 		this.userRepository = userRepository;
@@ -54,6 +58,7 @@ public class UserManagementService {
 		this.passwordEncoder = passwordEncoder;
 		this.auditLogService = auditLogService;
 		this.webSessionRepository = webSessionRepository;
+		this.personRepository = personRepository;
 		this.clock = clock;
 	}
 
@@ -88,6 +93,19 @@ public class UserManagementService {
 		);
 
 		User savedUser = userRepository.save(user);
+		if (savedUser.organizationId() != null) {
+			Person person = new Person(
+				savedUser.id(),
+				savedUser.organizationId(),
+				savedUser.fullName(),
+				savedUser.email(),
+				null,
+				savedUser.status() == UserStatus.ACTIVE,
+				now,
+				now
+			);
+			personRepository.save(person);
+		}
 		LOGGER.info(
 			"user_management action=create_user actor_id={} target_user_id={} target_organization_id={}",
 			actor.userId(),
@@ -171,6 +189,22 @@ public class UserManagementService {
 
 		Instant updatedAt = Instant.now(clock);
 		User updatedUser = userRepository.updateProfile(userId, normalizedFullName, normalizedEmail, updatedAt);
+		if (updatedUser.organizationId() != null) {
+			personRepository.findByIdAndOrganizationId(userId, updatedUser.organizationId())
+				.ifPresent(existingPerson -> {
+					Person newPerson = new Person(
+						existingPerson.id(),
+						existingPerson.organizationId(),
+						updatedUser.fullName(),
+						updatedUser.email(),
+						existingPerson.department(),
+						existingPerson.active(),
+						existingPerson.createdAt(),
+						updatedAt
+					);
+					personRepository.update(newPerson);
+				});
+		}
 
 		LOGGER.info(
 			"user_management action=update_profile actor_id={} target_user_id={}",
@@ -244,6 +278,22 @@ public class UserManagementService {
 
 		Instant updatedAt = Instant.now(clock);
 		User updatedUser = userRepository.updateStatus(userId, status, updatedAt);
+		if (updatedUser.organizationId() != null) {
+			personRepository.findByIdAndOrganizationId(userId, updatedUser.organizationId())
+				.ifPresent(existingPerson -> {
+					Person newPerson = new Person(
+						existingPerson.id(),
+						existingPerson.organizationId(),
+						existingPerson.fullName(),
+						existingPerson.email(),
+						existingPerson.department(),
+						status == UserStatus.ACTIVE,
+						existingPerson.createdAt(),
+						updatedAt
+					);
+					personRepository.update(newPerson);
+				});
+		}
 		LOGGER.info(
 			"user_management action=update_status actor_id={} target_user_id={} new_status={}",
 			actor.userId(),
@@ -328,6 +378,22 @@ public class UserManagementService {
 		if (user.status() == UserStatus.LOCKED) {
 			userRepository.updateStatus(userId, UserStatus.ACTIVE, now);
 			userRepository.resetFailedLoginAttempts(userId, now);
+			if (user.organizationId() != null) {
+				personRepository.findByIdAndOrganizationId(userId, user.organizationId())
+					.ifPresent(existingPerson -> {
+						Person newPerson = new Person(
+							existingPerson.id(),
+							existingPerson.organizationId(),
+							existingPerson.fullName(),
+							existingPerson.email(),
+							existingPerson.department(),
+							true,
+							existingPerson.createdAt(),
+							now
+						);
+						personRepository.update(newPerson);
+					});
+			}
 		}
 
 		// Revoke all active sessions to force re-authentication.

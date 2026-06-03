@@ -78,7 +78,7 @@ class AuthLoginThrottlingIntegrationTest extends AbstractIntegrationTest {
 	}
 
 	private org.springframework.test.web.servlet.ResultActions performInvalidLoginAttempt() throws Exception {
-		return mockMvc.perform(post("/api/v1/auth/login")
+		return mockMvc.perform(post("/auth/login")
 			.with(request -> {
 				request.setRemoteAddr(CLIENT_IP);
 				return request;

@@ -54,7 +54,7 @@ class AuditLogIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void successfulLoginShouldPersistAuditEvent() throws Exception {
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -76,7 +76,7 @@ class AuditLogIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void invalidLoginShouldPersistAuditEvent() throws Exception {
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""

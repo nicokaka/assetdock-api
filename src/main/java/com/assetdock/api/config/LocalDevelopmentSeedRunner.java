@@ -12,6 +12,8 @@ import java.time.Instant;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import com.assetdock.api.person.domain.Person;
+import com.assetdock.api.person.domain.PersonRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.assetdock.api.common.util.EmailNormalizer;
@@ -31,6 +33,7 @@ public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 	private final LocalSeedProperties properties;
 	private final OrganizationRepository organizationRepository;
 	private final UserRepository userRepository;
+	private final PersonRepository personRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final Clock clock;
 
@@ -38,12 +41,14 @@ public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 		LocalSeedProperties properties,
 		OrganizationRepository organizationRepository,
 		UserRepository userRepository,
+		PersonRepository personRepository,
 		PasswordEncoder passwordEncoder,
 		Clock clock
 	) {
 		this.properties = properties;
 		this.organizationRepository = organizationRepository;
 		this.userRepository = userRepository;
+		this.personRepository = personRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.clock = clock;
 	}
@@ -82,6 +87,18 @@ public class LocalDevelopmentSeedRunner implements ApplicationRunner {
 			now
 		);
 		userRepository.save(user);
+
+		Person person = new Person(
+			user.id(),
+			organization.id(),
+			user.fullName(),
+			user.email(),
+			null,
+			true,
+			now,
+			now
+		);
+		personRepository.save(person);
 
 		LOGGER.info(
 			"local_seed status=completed organization_id={} admin_user_id={}",

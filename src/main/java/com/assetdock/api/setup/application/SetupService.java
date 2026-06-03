@@ -10,6 +10,8 @@ import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
 import com.assetdock.api.user.domain.UserStatus;
+import com.assetdock.api.person.domain.Person;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
@@ -30,6 +32,7 @@ public class SetupService {
 
 	private final OrganizationRepository organizationRepository;
 	private final UserRepository userRepository;
+	private final PersonRepository personRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final AuditLogService auditLogService;
 	private final JdbcClient jdbcClient;
@@ -38,6 +41,7 @@ public class SetupService {
 	public SetupService(
 		OrganizationRepository organizationRepository,
 		UserRepository userRepository,
+		PersonRepository personRepository,
 		PasswordEncoder passwordEncoder,
 		AuditLogService auditLogService,
 		JdbcClient jdbcClient,
@@ -45,6 +49,7 @@ public class SetupService {
 	) {
 		this.organizationRepository = organizationRepository;
 		this.userRepository = userRepository;
+		this.personRepository = personRepository;
 		this.passwordEncoder = passwordEncoder;
 		this.auditLogService = auditLogService;
 		this.jdbcClient = jdbcClient;
@@ -102,6 +107,18 @@ public class SetupService {
 			now
 		);
 		userRepository.save(admin);
+
+		Person person = new Person(
+			admin.id(),
+			organization.id(),
+			admin.fullName(),
+			admin.email(),
+			null,
+			true,
+			now,
+			now
+		);
+		personRepository.save(person);
 
 		auditLogService.recordInCurrentTransaction(new AuditLogCommand(
 			organization.id(),

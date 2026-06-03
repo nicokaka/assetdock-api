@@ -55,7 +55,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 	void shouldLoginSuccessfully() throws Exception {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -76,7 +76,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 	void shouldRejectInvalidCredentials() throws Exception {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -93,7 +93,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 	void shouldAutomaticallyLockUserAfterConfiguredFailedLoginThreshold() throws Exception {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!", 2);
 
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -114,7 +114,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 	void shouldBlockInactiveUser() throws Exception {
 		insertUser("INACTIVE", "user@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -131,7 +131,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 	void shouldBlockLockedUser() throws Exception {
 		insertUser("LOCKED", "user@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""
@@ -140,7 +140,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 					  "password": "S3curePass!"
 					}
 					"""))
-			.andExpect(status().isForbidden())
+			.andExpect(status().is(423))
 			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:user-locked"));
 	}
 
@@ -148,7 +148,7 @@ class AuthLoginIntegrationTest extends AbstractIntegrationTest {
 	void shouldResetFailedLoginAttemptsAfterSuccessfulAuthentication() throws Exception {
 		insertUser("ACTIVE", "user@assetdock.dev", "S3curePass!", 2);
 
-		mockMvc.perform(post("/api/v1/auth/login")
+		mockMvc.perform(post("/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""

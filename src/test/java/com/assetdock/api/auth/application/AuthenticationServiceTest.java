@@ -11,6 +11,7 @@ import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
+import com.assetdock.api.person.domain.PersonRepository;
 import com.assetdock.api.user.domain.UserStatus;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -49,6 +50,9 @@ class AuthenticationServiceTest {
 	@Mock
 	private UserRepository userRepository;
 
+	@Mock
+	private PersonRepository personRepository;
+
 	private AuthenticationService authenticationService;
 	private PasswordEncoder passwordEncoder;
 	private AuditLogRepository auditLogRepository;
@@ -82,6 +86,7 @@ class AuthenticationServiceTest {
 			jwtTokenService,
 			auditLogService,
 			new AuthHardeningProperties(3),
+			personRepository,
 			clock
 		);
 	}

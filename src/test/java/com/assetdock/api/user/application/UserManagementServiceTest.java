@@ -9,6 +9,7 @@ import com.assetdock.api.organization.domain.OrganizationRepository;
 import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import com.assetdock.api.user.domain.User;
+import com.assetdock.api.person.domain.PersonRepository;
 import com.assetdock.api.auth.domain.WebSessionRepository;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserRole;
@@ -55,6 +56,9 @@ class UserManagementServiceTest {
 	@Mock
 	private WebSessionRepository webSessionRepository;
 
+	@Mock
+	private PersonRepository personRepository;
+
 	private UserManagementService userManagementService;
 	private PasswordEncoder passwordEncoder;
 
@@ -78,6 +82,7 @@ class UserManagementServiceTest {
 			passwordEncoder,
 			auditLogService,
 			webSessionRepository,
+			personRepository,
 			Clock.fixed(NOW, ZoneOffset.UTC)
 		);
 	}

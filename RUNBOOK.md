@@ -6,10 +6,10 @@
 - Arquivo `.env` na raiz (copiar de `.env.example`)
 
 ## Portas
-| Porta | Uso | Context-path |
-|---|---|---|
-| 8080 | API principal (Spring Security ativo) | /api/v1 |
-| 8081 | Management / Actuator (sem auth) | / |
+| Porta | Uso | Context-path | Observações |
+|---|---|---|---|
+| 8080 | API principal (Spring Security ativo) | /api/v1 | Apenas `/actuator/health` está público. Outros endpoints de `/actuator` exigem autenticação. |
+| 8081 | Management / Actuator (porta interna) | / | Porta administrativa, não exposta externamente. |
 
 ## Inicialização
 ```bash

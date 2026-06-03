@@ -8,6 +8,8 @@ import com.assetdock.api.common.util.EmailNormalizer;
 import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserStatus;
+import com.assetdock.api.person.domain.Person;
+import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -30,6 +32,7 @@ public class EmergencyPasswordResetRunner implements ApplicationRunner {
 	private final PasswordEncoder passwordEncoder;
 	private final WebSessionRepository webSessionRepository;
 	private final AuditLogService auditLogService;
+	private final PersonRepository personRepository;
 	private final ApplicationContext applicationContext;
 	private final TransactionTemplate transactionTemplate;
 	private final Clock clock;
@@ -39,6 +42,7 @@ public class EmergencyPasswordResetRunner implements ApplicationRunner {
 		PasswordEncoder passwordEncoder,
 		WebSessionRepository webSessionRepository,
 		AuditLogService auditLogService,
+		PersonRepository personRepository,
 		ApplicationContext applicationContext,
 		TransactionTemplate transactionTemplate,
 		Clock clock
@@ -47,6 +51,7 @@ public class EmergencyPasswordResetRunner implements ApplicationRunner {
 		this.passwordEncoder = passwordEncoder;
 		this.webSessionRepository = webSessionRepository;
 		this.auditLogService = auditLogService;
+		this.personRepository = personRepository;
 		this.applicationContext = applicationContext;
 		this.transactionTemplate = transactionTemplate;
 		this.clock = clock;
@@ -87,6 +92,22 @@ public class EmergencyPasswordResetRunner implements ApplicationRunner {
 			if (user.status() == UserStatus.LOCKED) {
 				userRepository.updateStatus(user.id(), UserStatus.ACTIVE, now);
 				userRepository.resetFailedLoginAttempts(user.id(), now);
+				if (user.organizationId() != null) {
+					personRepository.findByIdAndOrganizationId(user.id(), user.organizationId())
+						.ifPresent(existingPerson -> {
+							Person newPerson = new Person(
+								existingPerson.id(),
+								existingPerson.organizationId(),
+								existingPerson.fullName(),
+								existingPerson.email(),
+								existingPerson.department(),
+								true,
+								existingPerson.createdAt(),
+								now
+							);
+							personRepository.update(newPerson);
+						});
+				}
 				LOGGER.info("User account unlocked during emergency reset.");
 			}
 

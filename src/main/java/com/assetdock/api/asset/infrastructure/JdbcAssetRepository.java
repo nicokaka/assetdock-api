@@ -314,7 +314,7 @@ public class JdbcAssetRepository implements AssetRepository {
 		return jdbcClient.sql(baseSelect() + """
 			WHERE a.id = :assetId
 			  AND a.organization_id = :organizationId
-			FOR UPDATE
+			FOR UPDATE OF a
 			""")
 			.param("assetId", assetId)
 			.param("organizationId", organizationId)

@@ -73,7 +73,7 @@ class WebAuthSessionIntegrationTest extends AbstractIntegrationTest {
 		assertThat(webSessionCount()).isEqualTo(1);
 		assertThat(auditEventCount("WEB_SESSION_CREATED")).isEqualTo(1);
 
-		mockMvc.perform(get("/api/v1/web/auth/me")
+		mockMvc.perform(get("/web/auth/me")
 				.cookie(sessionCookie))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.user.id").value(USER_ID.toString()))
@@ -85,7 +85,7 @@ class WebAuthSessionIntegrationTest extends AbstractIntegrationTest {
 
 	@Test
 	void webAuthEndpointsRejectRequestsWithoutSession() throws Exception {
-		mockMvc.perform(get("/api/v1/web/auth/me"))
+		mockMvc.perform(get("/web/auth/me"))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.type").value("urn:assetdock:problem:authentication-required"));
 	}
@@ -98,7 +98,7 @@ class WebAuthSessionIntegrationTest extends AbstractIntegrationTest {
 		assertThat(sessionCookie).isNotNull();
 		assertThat(csrfCookie).isNotNull();
 
-		mockMvc.perform(post("/api/v1/web/auth/logout")
+		mockMvc.perform(post("/web/auth/logout")
 				.cookie(sessionCookie, csrfCookie)
 				.header("X-CSRF-Token", csrfCookie.getValue()))
 			.andExpect(status().isNoContent())
@@ -110,13 +110,13 @@ class WebAuthSessionIntegrationTest extends AbstractIntegrationTest {
 		assertThat(invalidatedWebSessionCount()).isEqualTo(1);
 		assertThat(auditEventCount("WEB_SESSION_LOGGED_OUT")).isEqualTo(1);
 
-		mockMvc.perform(get("/api/v1/web/auth/me")
+		mockMvc.perform(get("/web/auth/me")
 				.cookie(sessionCookie))
 			.andExpect(status().isUnauthorized());
 	}
 
 	private MvcResult performWebLogin() throws Exception {
-		return mockMvc.perform(post("/api/v1/web/auth/login")
+		return mockMvc.perform(post("/web/auth/login")
 				.with(uniqueClientIp())
 				.contentType(APPLICATION_JSON)
 				.content("""

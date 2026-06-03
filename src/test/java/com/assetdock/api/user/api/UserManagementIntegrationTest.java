@@ -354,10 +354,10 @@ class UserManagementIntegrationTest extends AbstractIntegrationTest {
 
 		String token = login("orgadmin1@assetdock.dev", "S3curePass!");
 
-		mockMvc.perform(get("/users")
+		mockMvc.perform(get("/users?size=100")
 				.header(AUTHORIZATION, bearer(token)))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$", hasSize(100)));
+			.andExpect(jsonPath("$.items", hasSize(100)));
 	}
 
 	@Test

@@ -95,16 +95,30 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 	}
 
 	private boolean isLoginRequest(HttpServletRequest request) {
+		String path = getLookupPath(request);
 		return "POST".equalsIgnoreCase(request.getMethod())
-			&& (LOGIN_PATH.equals(request.getServletPath()) || WEB_LOGIN_PATH.equals(request.getServletPath()));
+			&& (LOGIN_PATH.equals(path) || WEB_LOGIN_PATH.equals(path));
 	}
 
 	private boolean isImportRequest(HttpServletRequest request) {
-		return "POST".equalsIgnoreCase(request.getMethod()) && IMPORT_PATH.equals(request.getServletPath());
+		return "POST".equalsIgnoreCase(request.getMethod()) && IMPORT_PATH.equals(getLookupPath(request));
 	}
 
 	private boolean isSetupRequest(HttpServletRequest request) {
-		return "POST".equalsIgnoreCase(request.getMethod()) && SETUP_PATH.equals(request.getServletPath());
+		return "POST".equalsIgnoreCase(request.getMethod()) && SETUP_PATH.equals(getLookupPath(request));
+	}
+
+	private String getLookupPath(HttpServletRequest request) {
+		String servletPath = request.getServletPath();
+		if (servletPath != null && !servletPath.isEmpty()) {
+			return servletPath;
+		}
+		String requestUri = request.getRequestURI();
+		String contextPath = request.getContextPath();
+		if (contextPath != null && requestUri.startsWith(contextPath)) {
+			return requestUri.substring(contextPath.length());
+		}
+		return requestUri;
 	}
 
 	private EndpointRateLimiter.Endpoint resolveEndpoint(HttpServletRequest request) {
