@@ -32,14 +32,14 @@ services:
     container_name: assetdock-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: assetdock
-      POSTGRES_USER: assetdock
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-assetdock}
+      POSTGRES_USER: ${POSTGRES_USER:-assetdock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-assetdock_db_pass_2026}
       TZ: UTC
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U assetdock -d assetdock"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-assetdock} -d ${POSTGRES_DB:-assetdock}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -59,10 +59,10 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: production
-      DATABASE_URL: jdbc:postgresql://postgres:5432/assetdock
-      DB_USERNAME: assetdock
-      DB_PASSWORD: ${DB_PASSWORD:-assetdock_secret_change_me}
-      JWT_SECRET: "${JWT_SECRET:?JWT_SECRET must be set. Generate with: openssl rand -base64 48}"
+      DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-assetdock}
+      DB_USERNAME: ${POSTGRES_USER:-assetdock}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-assetdock_db_pass_2026}
+      JWT_SECRET: ${JWT_SECRET:-this-is-a-secure-selfhosted-jwt-secret-key-2026-assetdock}
       JWT_ISSUER: assetdock-api
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       WEB_SESSION_SECURE_COOKIES: "false"
