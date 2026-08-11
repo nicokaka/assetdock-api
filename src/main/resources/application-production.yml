@@ -11,5 +11,5 @@ app:
 
 security:
   web-session:
-    secure-cookies: true
+    secure-cookies: ${WEB_SESSION_SECURE_COOKIES:false}
     same-site: ${WEB_SESSION_COOKIE_SAME_SITE:Lax}

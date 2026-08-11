@@ -57,10 +57,11 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER:-assetdock-api}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      PORTFOLIO_SEED_ENABLED: ${PORTFOLIO_SEED_ENABLED:-false}
       WEB_SESSION_SECURE_COOKIES: ${WEB_SESSION_SECURE_COOKIES:-false}
       WEB_SESSION_COOKIE_SAME_SITE: ${WEB_SESSION_COOKIE_SAME_SITE:-Lax}
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
