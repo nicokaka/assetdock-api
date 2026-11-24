@@ -95,7 +95,7 @@ public class AssetController {
 	AssetView update(
 		@PathVariable UUID id,
 		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-		@RequestBody UpdateAssetRequest request
+		@Valid @RequestBody UpdateAssetRequest request
 	) {
 		return assetManagementService.update(
 			principal,

@@ -120,12 +120,12 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 					{
 					  "displayName": "Notebook atualizado",
 					  "serialNumber": "SN-UPDATED",
-					  "status": "ASSIGNED"
+					  "status": "IN_MAINTENANCE"
 					}
 					"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.displayName").value("Notebook atualizado"))
-			.andExpect(jsonPath("$.status").value("ASSIGNED"));
+			.andExpect(jsonPath("$.status").value("IN_MAINTENANCE"));
 
 		Map<String, Object> event = latestAuditEvent();
 		org.assertj.core.api.Assertions.assertThat(event)
@@ -133,6 +133,21 @@ class AssetManagementIntegrationTest extends AbstractIntegrationTest {
 			.containsEntry("outcome", "SUCCESS")
 			.containsEntry("organization_id", ORG_1)
 			.containsEntry("resource_id", ASSET_1);
+	}
+
+	@Test
+	void assetManagerCannotTransitionToAssignedViaPatch() throws Exception {
+		String token = login("manager1@assetdock.dev", "S3curePass!");
+
+		mockMvc.perform(patch("/assets/{id}", ASSET_1)
+				.header(AUTHORIZATION, bearer(token))
+				.contentType(APPLICATION_JSON)
+				.content("""
+					{
+					  "status": "ASSIGNED"
+					}
+					"""))
+			.andExpect(status().isBadRequest());
 	}
 
 	@Test

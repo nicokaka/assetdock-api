@@ -26,6 +26,12 @@ public class AssetExportService {
 	}
 
 	@Transactional(readOnly = true)
+	public void validateAccess(AuthenticatedUserPrincipal actor) {
+		UUID organizationId = requireActorOrganizationId(actor);
+		tenantAccessService.requireAssetReadAccess(actor, organizationId);
+	}
+
+	@Transactional(readOnly = true)
 	public void exportCsv(AuthenticatedUserPrincipal actor, java.io.OutputStream outputStream) throws IOException {
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireAssetReadAccess(actor, organizationId);
@@ -46,12 +52,12 @@ public class AssetExportService {
 				assets = assetRepository.findAllPaginated(organizationId, limit, offset, null, null, null, null);
 				for (Asset asset : assets) {
 					printer.printRecord(
-						asset.assetTag(),
-						asset.displayName(),
+						sanitizeCsvCell(asset.assetTag()),
+						sanitizeCsvCell(asset.displayName()),
 						asset.status().name(),
-						asset.serialNumber(),
-						asset.hostname(),
-						asset.description(),
+						sanitizeCsvCell(asset.serialNumber()),
+						sanitizeCsvCell(asset.hostname()),
+						sanitizeCsvCell(asset.description()),
 						asset.categoryId(),
 						asset.manufacturerId(),
 						asset.currentLocationId(),
@@ -66,9 +72,20 @@ public class AssetExportService {
 		}
 	}
 
+	private Object sanitizeCsvCell(String value) {
+		if (value == null || value.isEmpty()) {
+			return value;
+		}
+		char first = value.charAt(0);
+		if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
+			return "'" + value;
+		}
+		return value;
+	}
+
 	private UUID requireActorOrganizationId(AuthenticatedUserPrincipal actor) {
 		if (actor.organizationId() == null) {
-			throw new IllegalStateException("Tenant organization context is required for export.");
+			throw new InvalidAssetRequestException("Tenant organization context is required for export.");
 		}
 		return actor.organizationId();
 	}

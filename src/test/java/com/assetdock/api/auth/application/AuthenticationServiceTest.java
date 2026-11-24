@@ -129,6 +129,7 @@ class AuthenticationServiceTest {
 
 		verify(userRepository).incrementFailedLoginAttempts(activeUser.id(), NOW);
 		verify(userRepository).updateStatus(activeUser.id(), UserStatus.LOCKED, NOW);
+		verify(personRepository, never()).update(any());
 		verify(userRepository, never()).updateLastLoginAt(any(), any());
 	}
 

@@ -257,6 +257,94 @@ class UserManagementServiceTest {
 		verify(userRepository, never()).save(any());
 	}
 
+	@Test
+	void viewerShouldChangeOwnPasswordWhenCurrentPasswordMatches() {
+		AuthenticatedUserPrincipal actor = principal(USER_ID, ORG_1, Set.of(UserRole.VIEWER));
+		User currentUser = new User(
+			USER_ID,
+			ORG_1,
+			"viewer@assetdock.dev",
+			"Viewer User",
+			passwordEncoder.encode("OldPass123!"),
+			UserStatus.ACTIVE,
+			Set.of(UserRole.VIEWER),
+			0,
+			null,
+			NOW.minusSeconds(3600),
+			NOW.minusSeconds(1800)
+		);
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(currentUser));
+
+		userManagementService.changePassword(actor, USER_ID, new ChangePasswordCommand("OldPass123!", "NewPass123!"));
+
+		ArgumentCaptor<String> hashCaptor = ArgumentCaptor.forClass(String.class);
+		verify(userRepository).updatePasswordHash(eq(USER_ID), hashCaptor.capture(), eq(NOW));
+		assertThat(passwordEncoder.matches("NewPass123!", hashCaptor.getValue())).isTrue();
+		verify(webSessionRepository).invalidateAllByUserId(USER_ID, NOW);
+	}
+
+	@Test
+	void viewerShouldNotChangeAnotherUsersPassword() {
+		UUID otherUserId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.VIEWER)
+		);
+		when(userRepository.findById(otherUserId)).thenReturn(Optional.of(user(otherUserId, ORG_1, UserStatus.ACTIVE, Set.of(UserRole.VIEWER))));
+
+		assertThatThrownBy(() -> userManagementService.changePassword(
+			actor,
+			otherUserId,
+			new ChangePasswordCommand("OldPass123!", "NewPass123!")
+		)).isInstanceOf(AccessDeniedException.class);
+
+		verify(userRepository, never()).updatePasswordHash(any(), any(), any());
+	}
+
+	@Test
+	void unlockingUserShouldResetFailedLoginAttempts() {
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.ORG_ADMIN)
+		);
+		User lockedUser = user(USER_ID, ORG_1, UserStatus.LOCKED, Set.of(UserRole.VIEWER));
+		User activeUser = user(USER_ID, ORG_1, UserStatus.ACTIVE, Set.of(UserRole.VIEWER));
+		when(userRepository.findById(USER_ID)).thenReturn(Optional.of(lockedUser));
+		when(userRepository.updateStatus(USER_ID, UserStatus.ACTIVE, NOW)).thenReturn(activeUser);
+
+		userManagementService.updateStatus(actor, USER_ID, UserStatus.ACTIVE);
+
+		verify(userRepository).resetFailedLoginAttempts(USER_ID, NOW);
+	}
+
+	@Test
+	void createUserShouldNotDuplicateExistingPersonWithSameEmail() {
+		AuthenticatedUserPrincipal actor = principal(
+			UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+			ORG_1,
+			Set.of(UserRole.ORG_ADMIN)
+		);
+		CreateUserCommand command = new CreateUserCommand(
+			null,
+			"Existing Person",
+			"existing.person@assetdock.dev",
+			"S3curePass!",
+			Set.of(UserRole.VIEWER),
+			UserStatus.ACTIVE
+		);
+
+		when(organizationRepository.findById(ORG_1)).thenReturn(Optional.of(organization(ORG_1)));
+		when(userRepository.existsByEmail("existing.person@assetdock.dev")).thenReturn(false);
+		when(userRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+		when(personRepository.existsByOrganizationIdAndEmail(ORG_1, "existing.person@assetdock.dev")).thenReturn(true);
+
+		userManagementService.createUser(actor, command);
+
+		verify(personRepository, never()).save(any());
+	}
+
 	private AuthenticatedUserPrincipal principal(UUID userId, UUID organizationId, Set<UserRole> roles) {
 		return new AuthenticatedUserPrincipal(userId, organizationId, "actor@assetdock.dev", roles);
 	}

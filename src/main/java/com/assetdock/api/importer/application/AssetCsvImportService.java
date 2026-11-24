@@ -17,7 +17,7 @@ import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.security.auth.TenantAccessService;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.PushbackReader;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
@@ -74,11 +74,7 @@ public class AssetCsvImportService {
 			throw new InvalidAssetImportRequestException("empty-file", "A non-empty CSV file is required.");
 		}
 
-		String contentType = file.getContentType();
-		if (contentType != null && !contentType.startsWith("text/") && !contentType.equals("application/csv")) {
-			recordImportFailureAttempt(organizationId, actor.userId(), sanitizeFileName(file.getOriginalFilename()), "invalid-content-type");
-			throw new InvalidAssetImportRequestException("invalid-content-type", "File must be a CSV text file.");
-		}
+		validateContentType(file.getContentType(), file.getOriginalFilename(), organizationId, actor.userId());
 
 		Instant now = Instant.now(clock);
 		AssetImportJob job = new AssetImportJob(
@@ -199,27 +195,36 @@ public class AssetCsvImportService {
 			throw new InvalidAssetImportRequestException("file-size-limit-exceeded", "CSV file size limit exceeded. Maximum is 2 MB.");
 		}
 
-		try (Reader reader = new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8);
-		     CSVParser parser = CSVFormat.DEFAULT.builder()
+		try (PushbackReader reader = new PushbackReader(
+			new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8), 1)) {
+			int firstChar = reader.read();
+			if (firstChar != -1 && firstChar != '\uFEFF') {
+				reader.unread(firstChar);
+			}
+			try (CSVParser parser = CSVFormat.DEFAULT.builder()
 				.setHeader()
 				.setSkipHeaderRecord(true)
 				.setIgnoreEmptyLines(true)
 				.setTrim(true)
 				.build()
 				.parse(reader)) {
-			List<String> headers = parser.getHeaderNames();
-			if (headers == null || headers.isEmpty()) {
-				throw new InvalidAssetImportRequestException("missing-header", "CSV header is required.");
+				List<String> headers = parser.getHeaderNames();
+				if (headers == null || headers.isEmpty()) {
+					throw new InvalidAssetImportRequestException("missing-header", "CSV header is required.");
+				}
+				validateHeaders(headers);
+				List<CSVRecord> records = new ArrayList<>();
+				for (CSVRecord record : parser) {
+					if (records.size() >= MAX_DATA_ROWS) {
+						throw new InvalidAssetImportRequestException("line-limit-exceeded", "CSV line limit exceeded. Maximum is 1000 data rows.");
+					}
+					records.add(record);
+				}
+				if (records.isEmpty()) {
+					throw new InvalidAssetImportRequestException("empty-data-rows", "CSV must include at least one data row.");
+				}
+				return new ParsedCsv(records, headers.size());
 			}
-			validateHeaders(headers);
-			List<CSVRecord> records = parser.getRecords();
-			if (records.isEmpty()) {
-				throw new InvalidAssetImportRequestException("empty-data-rows", "CSV must include at least one data row.");
-			}
-			if (records.size() > MAX_DATA_ROWS) {
-				throw new InvalidAssetImportRequestException("line-limit-exceeded", "CSV line limit exceeded. Maximum is 1000 data rows.");
-			}
-			return new ParsedCsv(records, headers.size());
 		}
 		catch (InvalidAssetImportRequestException exception) {
 			throw exception;
@@ -415,13 +420,34 @@ public class AssetCsvImportService {
 		}
 	}
 
+	private void validateContentType(String contentType, String originalFilename, UUID organizationId, UUID actorUserId) {
+		if (contentType == null || contentType.isBlank()) {
+			return;
+		}
+		String mediaType = contentType.split(";")[0].trim().toLowerCase(java.util.Locale.ROOT);
+		boolean isCsvExtension = originalFilename != null
+			&& originalFilename.trim().toLowerCase(java.util.Locale.ROOT).endsWith(".csv");
+		boolean allowed = mediaType.startsWith("text/")
+			|| "application/csv".equals(mediaType)
+			|| "application/vnd.ms-excel".equals(mediaType)
+			|| ("application/octet-stream".equals(mediaType) && isCsvExtension);
+		if (!allowed) {
+			recordImportFailureAttempt(organizationId, actorUserId, sanitizeFileName(originalFilename), "invalid-content-type");
+			throw new InvalidAssetImportRequestException("invalid-content-type", "File must be a CSV text file.");
+		}
+	}
+
 	private AssetStatus optionalStatus(CSVRecord record, String column) {
 		String value = optionalValue(record, column);
 		if (value == null) {
 			return null;
 		}
 		try {
-			return AssetStatus.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+			AssetStatus parsedStatus = AssetStatus.valueOf(value.trim().toUpperCase(java.util.Locale.ROOT));
+			if (parsedStatus == AssetStatus.ASSIGNED) {
+				throw new InvalidAssetImportRequestException(column + " cannot be ASSIGNED during CSV import.");
+			}
+			return parsedStatus;
 		}
 		catch (IllegalArgumentException exception) {
 			throw new InvalidAssetImportRequestException(column + " must be a valid asset status.");

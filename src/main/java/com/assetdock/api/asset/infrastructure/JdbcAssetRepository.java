@@ -429,6 +429,25 @@ public class JdbcAssetRepository implements AssetRepository {
 			});
 	}
 
+	@Override
+	public boolean existsAssignedAssetsByPersonId(UUID organizationId, UUID personId) {
+		Boolean exists = jdbcClient.sql("""
+			SELECT EXISTS(
+				SELECT 1
+				FROM assets
+				WHERE organization_id = :organizationId
+				  AND current_assigned_person_id = :personId
+				  AND archived_at IS NULL
+			)
+			""")
+			.param("organizationId", organizationId)
+			.param("personId", personId)
+			.query(Boolean.class)
+			.single();
+
+		return Boolean.TRUE.equals(exists);
+	}
+
 	private String baseSelect() {
 		return """
 			SELECT a.id, a.organization_id, a.asset_tag, a.serial_number, a.hostname, a.display_name, a.description,

@@ -128,12 +128,14 @@ public class AssetAssignmentManagementService {
 		UUID organizationId = requireActorOrganizationId(actor);
 		if (writeAccess) {
 			tenantAccessService.requireAssignmentWriteAccess(actor, organizationId);
+			return assetRepository.findByIdAndOrganizationIdForUpdate(assetId, organizationId)
+				.orElseThrow(AssetNotFoundException::new);
 		}
 		else {
 			tenantAccessService.requireAssignmentReadAccess(actor, organizationId);
+			return assetRepository.findByIdAndOrganizationId(assetId, organizationId)
+				.orElseThrow(AssetNotFoundException::new);
 		}
-
-		return assetRepository.findByIdAndOrganizationId(assetId, organizationId).orElseThrow(AssetNotFoundException::new);
 	}
 
 	private void validateAssignableAsset(Asset asset) {
@@ -143,6 +145,14 @@ public class AssetAssignmentManagementService {
 
 		if (asset.status() == AssetStatus.RETIRED) {
 			throw new InvalidAssignmentRequestException("Assets with status RETIRED cannot be assigned.");
+		}
+
+		if (asset.status() == AssetStatus.IN_MAINTENANCE) {
+			throw new InvalidAssignmentRequestException("Assets in maintenance cannot be assigned.");
+		}
+
+		if (asset.status() == AssetStatus.ASSIGNED) {
+			throw new AssignmentAlreadyActiveException();
 		}
 	}
 
@@ -224,11 +234,12 @@ public class AssetAssignmentManagementService {
 			assignment.organizationId(),
 			actorUserId,
 			eventType,
-			"asset_assignment",
-			assignment.id(),
+			"asset",
+			assignment.assetId(),
 			"SUCCESS",
 			Map.of(
 				"assetId", assignment.assetId(),
+				"assignmentId", assignment.id(),
 				"personId", assignment.personId()
 			)
 		));

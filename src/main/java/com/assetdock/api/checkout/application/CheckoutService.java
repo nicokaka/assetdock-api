@@ -4,6 +4,7 @@ import com.assetdock.api.asset.application.AssetNotFoundException;
 import com.assetdock.api.asset.domain.Asset;
 import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.asset.domain.AssetStatus;
+import com.assetdock.api.assignment.domain.AssetAssignmentRepository;
 import com.assetdock.api.audit.application.AuditLogCommand;
 import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
@@ -29,6 +30,7 @@ public class CheckoutService {
 
     private final AssetCheckoutRepository checkoutRepository;
     private final AssetRepository assetRepository;
+    private final AssetAssignmentRepository assetAssignmentRepository;
     private final AuditLogService auditLogService;
     private final PersonRepository personRepository;
     private final TenantAccessService tenantAccessService;
@@ -37,6 +39,7 @@ public class CheckoutService {
     public CheckoutService(
         AssetCheckoutRepository checkoutRepository,
         AssetRepository assetRepository,
+        AssetAssignmentRepository assetAssignmentRepository,
         AuditLogService auditLogService,
         PersonRepository personRepository,
         TenantAccessService tenantAccessService,
@@ -44,6 +47,7 @@ public class CheckoutService {
     ) {
         this.checkoutRepository = checkoutRepository;
         this.assetRepository = assetRepository;
+        this.assetAssignmentRepository = assetAssignmentRepository;
         this.auditLogService = auditLogService;
         this.personRepository = personRepository;
         this.tenantAccessService = tenantAccessService;
@@ -58,8 +62,16 @@ public class CheckoutService {
         Asset asset = assetRepository.findByIdAndOrganizationIdForUpdate(assetId, organizationId)
             .orElseThrow(AssetNotFoundException::new);
 
+        if (asset.archivedAt() != null) {
+            throw new InvalidCheckoutRequestException("Archived assets cannot be checked out");
+        }
+
         if (asset.status() != AssetStatus.IN_STOCK) {
             throw new InvalidCheckoutRequestException("Asset must be IN_STOCK to be checked out");
+        }
+
+        if (assetAssignmentRepository.findActiveByAssetIdAndOrganizationId(assetId, organizationId).isPresent()) {
+            throw new InvalidCheckoutRequestException("Asset already has an active assignment");
         }
 
         var assignedPerson = personRepository.findById(request.personId())
@@ -67,6 +79,10 @@ public class CheckoutService {
 
         if (assignedPerson.organizationId() == null || !assignedPerson.organizationId().equals(principal.organizationId())) {
             throw new InvalidCheckoutRequestException("Person does not belong to your organization");
+        }
+
+        if (!assignedPerson.active()) {
+            throw new InvalidCheckoutRequestException("Cannot check out asset to an inactive person");
         }
 
         Instant now = Instant.now(clock);

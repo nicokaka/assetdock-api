@@ -1,5 +1,6 @@
 package com.assetdock.api.person.application;
 
+import com.assetdock.api.asset.domain.AssetRepository;
 import com.assetdock.api.audit.application.AuditLogCommand;
 import com.assetdock.api.audit.application.AuditLogService;
 import com.assetdock.api.audit.domain.AuditEventType;
@@ -18,17 +19,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class PersonManagementService {
 
 	private final PersonRepository personRepository;
+	private final AssetRepository assetRepository;
 	private final TenantAccessService tenantAccessService;
 	private final AuditLogService auditLogService;
 	private final Clock clock;
 
 	public PersonManagementService(
 		PersonRepository personRepository,
+		AssetRepository assetRepository,
 		TenantAccessService tenantAccessService,
 		AuditLogService auditLogService,
 		Clock clock
 	) {
 		this.personRepository = personRepository;
+		this.assetRepository = assetRepository;
 		this.tenantAccessService = tenantAccessService;
 		this.auditLogService = auditLogService;
 		this.clock = clock;
@@ -119,6 +123,11 @@ public class PersonManagementService {
 		Person existingPerson = personRepository.findByIdAndOrganizationId(personId, organizationId)
 			.orElseThrow(PersonNotFoundException::new);
 
+		if (existingPerson.active() && !command.active()
+			&& assetRepository.existsAssignedAssetsByPersonId(organizationId, personId)) {
+			throw new InvalidPersonRequestException("Cannot deactivate a person who currently has assigned assets.");
+		}
+
 		if (command.email() != null && !command.email().isBlank() && !command.email().equalsIgnoreCase(existingPerson.email())) {
 			if (personRepository.existsByOrganizationIdAndEmail(organizationId, command.email())) {
 				throw new InvalidPersonRequestException("Email is already in use by another person in this organization.");
@@ -163,6 +172,10 @@ public class PersonManagementService {
 
 		Person existingPerson = personRepository.findByIdAndOrganizationId(personId, organizationId)
 			.orElseThrow(PersonNotFoundException::new);
+
+		if (assetRepository.existsAssignedAssetsByPersonId(organizationId, personId)) {
+			throw new InvalidPersonRequestException("Cannot deactivate a person who currently has assigned assets.");
+		}
 
 		// Deactivate the person instead of hard delete to keep audit history
 		Instant now = Instant.now(clock);

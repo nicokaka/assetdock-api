@@ -65,7 +65,7 @@ public class AssetManagementService {
 		}
 
 		AssetStatus status = command.status() == null ? AssetStatus.IN_STOCK : command.status();
-		validateReferences(organizationId, command.categoryId(), command.manufacturerId(), command.currentLocationId(), command.currentAssignedPersonId());
+		validateReferences(organizationId, command.categoryId(), command.manufacturerId(), command.currentLocationId(), command.currentAssignedPersonId(), command.currentAssignedPersonId() != null);
 
 		Instant now = Instant.now(clock);
 		Asset asset = new Asset(
@@ -155,15 +155,26 @@ public class AssetManagementService {
 			throw new AssetAlreadyExistsException(assetTag);
 		}
 
+		if (command.currentAssignedPersonId() != null
+			&& !command.currentAssignedPersonId().equals(existingAsset.currentAssignedPersonId())) {
+			throw new InvalidAssetRequestException(
+				"Assigned person changes must be handled via checkout/assignment endpoints."
+			);
+		}
+
 		validateReferences(
 			existingAsset.organizationId(),
 			command.categoryId() != null ? command.categoryId() : existingAsset.categoryId(),
 			command.manufacturerId() != null ? command.manufacturerId() : existingAsset.manufacturerId(),
 			command.currentLocationId() != null ? command.currentLocationId() : existingAsset.currentLocationId(),
-			command.currentAssignedPersonId() != null ? command.currentAssignedPersonId() : existingAsset.currentAssignedPersonId()
+			command.currentAssignedPersonId() != null ? command.currentAssignedPersonId() : existingAsset.currentAssignedPersonId(),
+			false
 		);
 
 		AssetStatus status = command.status() == null ? existingAsset.status() : command.status();
+		if (status != existingAsset.status()) {
+			validateStatusTransition(existingAsset.status(), status);
+		}
 		Instant now = Instant.now(clock);
 		Asset updatedAsset = new Asset(
 			existingAsset.id(),
@@ -280,7 +291,8 @@ public class AssetManagementService {
 		UUID categoryId,
 		UUID manufacturerId,
 		UUID currentLocationId,
-		UUID currentAssignedPersonId
+		UUID currentAssignedPersonId,
+		boolean requireActiveAssignedPerson
 	) {
 		if (categoryId != null && categoryRepository.findByIdAndOrganizationId(categoryId, organizationId).isEmpty()) {
 			throw new InvalidAssetRequestException("categoryId must belong to the same organization as the asset.");
@@ -299,6 +311,9 @@ public class AssetManagementService {
 				.orElseThrow(() -> new InvalidAssetRequestException("currentAssignedPersonId must reference an existing person."));
 			if (assignedPerson.organizationId() == null || !assignedPerson.organizationId().equals(organizationId)) {
 				throw new InvalidAssetRequestException("currentAssignedPersonId must belong to the same organization as the asset.");
+			}
+			if (requireActiveAssignedPerson && !assignedPerson.active()) {
+				throw new InvalidAssetRequestException("currentAssignedPersonId must reference an active person.");
 			}
 		}
 	}

@@ -52,12 +52,12 @@ public class AssetLabelService {
                 contentStream.beginText();
                 contentStream.setFont(fontRegular, 10);
                 contentStream.newLineAtOffset(10, 100);
-                contentStream.showText("Tag: " + assetTag);
+                contentStream.showText("Tag: " + sanitizeWinAnsi(fontRegular, assetTag != null ? assetTag : "N/A"));
                 contentStream.newLineAtOffset(0, -15);
-                String safeDisplayName = displayName != null ? displayName : "N/A";
+                String safeDisplayName = sanitizeWinAnsi(fontRegular, displayName != null ? displayName : "N/A");
                 contentStream.showText("Name: " + safeDisplayName);
                 contentStream.newLineAtOffset(0, -15);
-                String safeSerial = serialNumber != null ? serialNumber : "N/A";
+                String safeSerial = sanitizeWinAnsi(fontRegular, serialNumber != null ? serialNumber : "N/A");
                 contentStream.showText("Serial: " + safeSerial);
                 contentStream.endText();
 
@@ -73,5 +73,30 @@ public class AssetLabelService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate Label PDF", e);
         }
+    }
+
+    private String sanitizeWinAnsi(PDType1Font font, String value) {
+        if (value == null) {
+            return "N/A";
+        }
+        String normalized = value.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ');
+        StringBuilder sanitized = new StringBuilder(normalized.length());
+        int index = 0;
+        while (index < normalized.length()) {
+            int codePoint = normalized.codePointAt(index);
+            index += Character.charCount(codePoint);
+            if (Character.isISOControl(codePoint)) {
+                sanitized.append(' ');
+                continue;
+            }
+            String glyph = new String(Character.toChars(codePoint));
+            try {
+                font.encode(glyph);
+                sanitized.append(glyph);
+            } catch (Exception ignored) {
+                sanitized.append('?');
+            }
+        }
+        return sanitized.toString();
     }
 }

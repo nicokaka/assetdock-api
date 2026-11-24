@@ -35,4 +35,6 @@ public interface AssetRepository {
 	Asset archive(UUID assetId, UUID organizationId, Instant archivedAt, Instant updatedAt);
 
 	Map<AssetStatus, Integer> countByStatusForOrganization(UUID organizationId);
+
+	boolean existsAssignedAssetsByPersonId(UUID organizationId, UUID personId);
 }

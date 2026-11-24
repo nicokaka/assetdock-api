@@ -19,12 +19,14 @@ public class AssetExportController {
 		this.assetExportService = assetExportService;
 	}
 
-	@GetMapping(produces = "text/csv")
+	@GetMapping
 	public void exportAssets(
 		@AuthenticationPrincipal AuthenticatedUserPrincipal principal,
 		HttpServletResponse response
 	) throws IOException {
-		response.setContentType("text/csv");
+		assetExportService.validateAccess(principal);
+
+		response.setContentType("text/csv; charset=UTF-8");
 		response.setHeader("Content-Disposition", "attachment; filename=\"assets_export.csv\"");
 
 		assetExportService.exportCsv(principal, response.getOutputStream());
