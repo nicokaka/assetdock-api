@@ -22,7 +22,7 @@ This file provides the persistent context and operational rules for any AI agent
 * **Deploy Web Updates**:
   `cd ~/assetdock/assetdock-web && git pull && docker compose -f ../assetdock-api/docker-compose.selfhosted.yml --env-file ../assetdock-api/.env.selfhosted up -d --build web`
 * **Deploy Full Stack Updates**:
-  `cd ~/assetdock/assetdock-api && git pull && docker compose -f docker-compose.selfhosted.yml --env-file .env.selfhosted up -d --build`
+  `cd ~/assetdock/assetdock-api && git pull && git -C ../assetdock-web pull && docker compose -f docker-compose.selfhosted.yml --env-file .env.selfhosted up -d --build`
 
 ## Validation Requirements
 Every proposed change, no matter how small, **must** be validated prior to completion:
