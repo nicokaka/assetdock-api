@@ -1,7 +1,9 @@
 package com.assetdock.api.security.config;
 
 import com.assetdock.api.auth.infrastructure.JwtProperties;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -13,6 +15,12 @@ import org.springframework.stereotype.Component;
 public class SecurityStartupValidator implements InitializingBean {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SecurityStartupValidator.class);
+
+	private static final Set<String> KNOWN_INSECURE_JWT_SECRETS = Set.of(
+		"this-is-a-local-dev-secret-only",
+		"this-is-a-secure-selfhosted-jwt-secret-key-2026-assetdock",
+		"supersecretjwtkeythatisatleast32chars_for_testing_only"
+	);
 	
 	private final Environment environment;
 	private final JwtProperties jwtProperties;
@@ -30,24 +38,34 @@ public class SecurityStartupValidator implements InitializingBean {
 
 	@Override
 	public void afterPropertiesSet() {
-		boolean isLocal = Arrays.asList(environment.getActiveProfiles()).contains("local")
-			|| Arrays.asList(environment.getDefaultProfiles()).contains("local");
-		boolean isTest = Arrays.asList(environment.getActiveProfiles()).contains("test")
-			|| Arrays.asList(environment.getDefaultProfiles()).contains("test");
+		String[] activeProfiles = environment.getActiveProfiles();
+		String[] effectiveProfiles = activeProfiles.length > 0 ? activeProfiles : environment.getDefaultProfiles();
+		boolean isLocal = Arrays.asList(effectiveProfiles).contains("local");
+		boolean isTest = Arrays.asList(effectiveProfiles).contains("test");
 
 		if (isLocal || isTest) {
 			return;
 		}
 
-		if (jwtProperties.secret() == null || jwtProperties.secret().isBlank()) {
+		String secret = jwtProperties.secret();
+		if (secret == null || secret.isBlank()) {
 			throw new IllegalStateException(
 				"CRITICAL SECURITY MISCONFIGURATION: security.jwt.secret is empty in a non-local/test profile. "
 					+ "Please set the JWT_SECRET environment variable with a strong secret (at least 32 bytes)."
 			);
 		}
-		
-		if (jwtProperties.secret().length() < 32) {
-			LOGGER.warn("SECURITY WARNING: security.jwt.secret is less than 32 characters long. This is insecure.");
+
+		if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+			throw new IllegalStateException(
+				"CRITICAL SECURITY MISCONFIGURATION: security.jwt.secret must be at least 32 UTF-8 bytes in a non-local/test profile."
+			);
+		}
+
+		if (KNOWN_INSECURE_JWT_SECRETS.contains(secret)) {
+			throw new IllegalStateException(
+				"CRITICAL SECURITY MISCONFIGURATION: security.jwt.secret uses a known default/example secret. "
+					+ "Generate a unique random JWT_SECRET for production."
+			);
 		}
 
 		boolean noOriginsConfigured = allowedOrigins == null || allowedOrigins.isBlank()

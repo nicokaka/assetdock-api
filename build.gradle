@@ -57,8 +57,10 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'user.timezone', 'UTC'
-	environment 'DOCKER_HOST', 'npipe:////./pipe/docker_engine'
-	environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+	if (System.getProperty('os.name').toLowerCase().contains('win')) {
+		environment 'DOCKER_HOST', 'npipe:////./pipe/docker_engine'
+		environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+	}
 	exclude '**/*IntegrationTest.class'
 	exclude '**/*ApplicationTests.class'
 }
@@ -66,8 +68,10 @@ tasks.named('test') {
 task integrationTest(type: Test) {
 	useJUnitPlatform()
 	systemProperty 'user.timezone', 'UTC'
-	environment 'DOCKER_HOST', 'npipe:////./pipe/docker_engine'
-	environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+	if (System.getProperty('os.name').toLowerCase().contains('win')) {
+		environment 'DOCKER_HOST', 'npipe:////./pipe/docker_engine'
+		environment 'TESTCONTAINERS_RYUK_DISABLED', 'true'
+	}
 	testClassesDirs = sourceSets.test.output.classesDirs
 	classpath = sourceSets.test.runtimeClasspath
 	include '**/*IntegrationTest.class'

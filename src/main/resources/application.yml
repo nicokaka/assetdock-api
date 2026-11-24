@@ -11,6 +11,10 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 3MB
   datasource:
     driver-class-name: org.postgresql.Driver
     hikari:

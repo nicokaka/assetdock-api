@@ -132,11 +132,8 @@ public class EndpointThrottlingFilter extends OncePerRequestFilter {
 	}
 
 	private String resolveOrigin(HttpServletRequest request) {
-		String forwardedFor = request.getHeader("X-Forwarded-For");
-		if (forwardedFor != null && !forwardedFor.isBlank()) {
-			return forwardedFor.split(",")[0].trim();
-		}
-
+		// Rely on request.getRemoteAddr() resolved by Tomcat's NATIVE forward-headers-strategy
+		// rather than trusting client-supplied X-Forwarded-For headers directly.
 		String remoteAddress = request.getRemoteAddr();
 		return remoteAddress == null || remoteAddress.isBlank() ? "unknown" : remoteAddress;
 	}

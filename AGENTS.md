@@ -3,11 +3,11 @@
 This file provides the persistent context and operational rules for any AI agent interacting with the `assetdock-api` repository.
 
 ## Repository Context
-* **Project**: AssetDock API (Frontend interface).
-* **Backend Companion**: `assetdock-api` (resides in a separate repository alongside this one).
-* **Current Status**: The web MVP is **completed** and consolidated in `main`.
-* **MVP Features Included**: Cookie-based session authentication, Assets, Assignments, Users, Audit Logs, Imports, Playwright E2E smoke tests, and a consolidated visual pass.
-* **Architecture**: Java 21, Spring Boot 3.5, PostgreSQL 17, Spring Security. 
+* **Project**: AssetDock API (Backend service).
+* **Frontend Companion**: `assetdock-web` (resides in a separate repository alongside this one).
+* **Current Status**: Core backend API and web MVP are **completed** and consolidated in `main`.
+* **Core Features Included**: JWT Bearer + cookie-based web session authentication (with CSRF protection), Assets, People, Assignments/Checkouts, Users & RBAC, Catalogs, Audit Logs, CSV Imports/Exports, QR/PDF labels, and Testcontainers integration tests.
+* **Architecture**: Java 21, Spring Boot 3.5, PostgreSQL 17, Flyway, Spring Security, JDBC Client.
 
 ## Core Principles
 1. **No Scope Creep**: Do not invent or open new large functional scopes without explicit user instruction. The MVP is done.

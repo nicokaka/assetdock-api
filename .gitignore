@@ -2,6 +2,8 @@ HELP.md
 .gradle
 build/
 .env
+.env.*
+!.env.*.example
 *.log
 *.txt
 tmp/
