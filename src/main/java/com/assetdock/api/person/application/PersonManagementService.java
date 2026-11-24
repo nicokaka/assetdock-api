@@ -79,8 +79,12 @@ public class PersonManagementService {
 	@Transactional(readOnly = true)
 	public PersonPageView listPeople(AuthenticatedUserPrincipal actor, Integer page, Integer size, String search, Boolean active) {
 		int actualPage = page != null && page > 0 ? page : 1;
-		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
-		int offset = (actualPage - 1) * actualSize;
+		int actualSize = (size == null || size <= 0) ? 20 : Math.min(size, 100);
+		long offsetLong = (long) (actualPage - 1) * actualSize;
+		if (offsetLong > Integer.MAX_VALUE) {
+			throw new InvalidPersonRequestException("Page offset is too large.");
+		}
+		int offset = (int) offsetLong;
 
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireAssetReadAccess(actor, organizationId);

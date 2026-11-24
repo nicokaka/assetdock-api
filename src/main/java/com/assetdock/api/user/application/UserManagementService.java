@@ -93,7 +93,8 @@ public class UserManagementService {
 		);
 
 		User savedUser = userRepository.save(user);
-		if (savedUser.organizationId() != null) {
+		if (savedUser.organizationId() != null
+			&& !personRepository.existsByOrganizationIdAndEmail(savedUser.organizationId(), savedUser.email())) {
 			Person person = new Person(
 				savedUser.id(),
 				savedUser.organizationId(),
@@ -132,16 +133,22 @@ public class UserManagementService {
 	@Transactional(readOnly = true)
 	public UserPageView listUsers(AuthenticatedUserPrincipal actor, Integer page, Integer size, String search, String status, String role) {
 		int actualPage = page != null && page > 0 ? page : 1;
-		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
-		int offset = (actualPage - 1) * actualSize;
+		int actualSize = (size == null || size <= 0) ? 20 : Math.min(size, 100);
+		long offsetLong = (long) (actualPage - 1) * actualSize;
+		if (offsetLong > Integer.MAX_VALUE) {
+			throw new InvalidUserRequestException("Page offset is too large.");
+		}
+		int offset = (int) offsetLong;
+		String normalizedStatus = normalizeUserStatusFilter(status);
+		String normalizedRole = normalizeUserRoleFilter(role);
 
 		if (actor.isSuperAdmin()) {
-			List<UserView> items = userRepository.findAllPaginatedGlobally(actualSize, offset, search, status, role)
+			List<UserView> items = userRepository.findAllPaginatedGlobally(actualSize, offset, search, normalizedStatus, normalizedRole)
 				.stream()
 				.map(user -> toView(user, actor))
 				.toList();
 			
-			long totalItems = userRepository.countGlobally(search, status, role);
+			long totalItems = userRepository.countGlobally(search, normalizedStatus, normalizedRole);
 			int totalPages = (int) Math.ceil((double) totalItems / actualSize);
 			
 			return new UserPageView(items, actualPage, actualSize, totalItems, totalPages);
@@ -150,12 +157,12 @@ public class UserManagementService {
 		UUID actorOrganizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireUserReadAccess(actor, actorOrganizationId);
 
-		List<UserView> items = userRepository.findAllPaginated(actorOrganizationId, actualSize, offset, search, status, role)
+		List<UserView> items = userRepository.findAllPaginated(actorOrganizationId, actualSize, offset, search, normalizedStatus, normalizedRole)
 			.stream()
 			.map(user -> toView(user, actor))
 			.toList();
 
-		long totalItems = userRepository.countForOrganization(actorOrganizationId, search, status, role);
+		long totalItems = userRepository.countForOrganization(actorOrganizationId, search, normalizedStatus, normalizedRole);
 		int totalPages = (int) Math.ceil((double) totalItems / actualSize);
 
 		return new UserPageView(items, actualPage, actualSize, totalItems, totalPages);
@@ -278,6 +285,12 @@ public class UserManagementService {
 
 		Instant updatedAt = Instant.now(clock);
 		User updatedUser = userRepository.updateStatus(userId, status, updatedAt);
+		if (user.status() == UserStatus.LOCKED && status == UserStatus.ACTIVE) {
+			userRepository.resetFailedLoginAttempts(userId, updatedAt);
+		}
+		if (status == UserStatus.INACTIVE || status == UserStatus.LOCKED) {
+			webSessionRepository.invalidateAllByUserId(userId, updatedAt);
+		}
 		if (updatedUser.organizationId() != null) {
 			personRepository.findByIdAndOrganizationId(userId, updatedUser.organizationId())
 				.ifPresent(existingPerson -> {
@@ -319,18 +332,20 @@ public class UserManagementService {
 	@Transactional
 	public void changePassword(AuthenticatedUserPrincipal actor, UUID userId, ChangePasswordCommand command) {
 		User user = userRepository.findById(userId).orElseThrow(UserNotFoundException::new);
-		tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
+		boolean isSelf = actor.userId().equals(userId);
 
-		// Only the user themselves or a SUPER_ADMIN may change the password.
-		if (!actor.userId().equals(userId) && !actor.isSuperAdmin()) {
-			throw new org.springframework.security.access.AccessDeniedException("Password change for another user requires SUPER_ADMIN.");
-		}
-
-		// When the caller is the user themselves, verify the current password.
-		if (actor.userId().equals(userId)) {
+		if (isSelf) {
+			if (!actor.isSuperAdmin() && (actor.organizationId() == null || !actor.organizationId().equals(user.organizationId()))) {
+				throw new org.springframework.security.access.AccessDeniedException("Cross-tenant access is not allowed.");
+			}
 			if (!passwordEncoder.matches(command.currentPassword(), user.passwordHash())) {
 				throw new InvalidUserRequestException("Current password is incorrect.");
 			}
+		} else {
+			if (!actor.isSuperAdmin()) {
+				throw new org.springframework.security.access.AccessDeniedException("Password change for another user requires SUPER_ADMIN.");
+			}
+			tenantAccessService.requireUserWriteAccess(actor, user.organizationId());
 		}
 
 		Instant now = Instant.now(clock);
@@ -545,6 +560,30 @@ public class UserManagementService {
 			limited ? null : user.createdAt(),
 			limited ? null : user.updatedAt()
 		);
+	}
+
+	private String normalizeUserStatusFilter(String status) {
+		if (status == null || status.isBlank()) {
+			return null;
+		}
+		String normalized = status.trim().toUpperCase(Locale.ROOT);
+		try {
+			return UserStatus.valueOf(normalized).name();
+		} catch (IllegalArgumentException exception) {
+			throw new InvalidUserRequestException("Invalid user status filter: " + status.trim());
+		}
+	}
+
+	private String normalizeUserRoleFilter(String role) {
+		if (role == null || role.isBlank()) {
+			return null;
+		}
+		String normalized = role.trim().toUpperCase(Locale.ROOT);
+		try {
+			return UserRole.valueOf(normalized).name();
+		} catch (IllegalArgumentException exception) {
+			throw new InvalidUserRequestException("Invalid user role filter: " + role.trim());
+		}
 	}
 
 	private UUID requireActorOrganizationId(AuthenticatedUserPrincipal actor) {

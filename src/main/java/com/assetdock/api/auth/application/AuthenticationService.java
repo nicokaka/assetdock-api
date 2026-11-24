@@ -8,7 +8,6 @@ import com.assetdock.api.security.auth.AuthenticatedUserPrincipal;
 import com.assetdock.api.user.domain.User;
 import com.assetdock.api.user.domain.UserRepository;
 import com.assetdock.api.user.domain.UserStatus;
-import com.assetdock.api.person.domain.Person;
 import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -26,6 +25,7 @@ public class AuthenticationService {
 	private final JwtTokenService jwtTokenService;
 	private final AuditLogService auditLogService;
 	private final AuthHardeningProperties authHardeningProperties;
+	@SuppressWarnings("unused")
 	private final PersonRepository personRepository;
 	private final Clock clock;
 
@@ -133,22 +133,6 @@ public class AuthenticationService {
 		}
 
 		User lockedUser = userRepository.updateStatus(user.id(), UserStatus.LOCKED, now);
-		if (lockedUser.organizationId() != null) {
-			personRepository.findByIdAndOrganizationId(lockedUser.id(), lockedUser.organizationId())
-				.ifPresent(existingPerson -> {
-					Person newPerson = new Person(
-						existingPerson.id(),
-						existingPerson.organizationId(),
-						existingPerson.fullName(),
-						existingPerson.email(),
-						existingPerson.department(),
-						false,
-						existingPerson.createdAt(),
-						now
-					);
-					personRepository.update(newPerson);
-				});
-		}
 		auditLogService.record(new AuditLogCommand(
 			lockedUser.organizationId(),
 			null,

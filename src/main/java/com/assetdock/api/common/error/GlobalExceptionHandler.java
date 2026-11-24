@@ -30,6 +30,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.ErrorResponseException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -38,6 +39,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -126,6 +128,41 @@ public class GlobalExceptionHandler {
 		);
 
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problemDetail);
+	}
+
+	@ExceptionHandler(AuthenticationException.class)
+	ResponseEntity<ProblemDetail> handleAuthenticationException(
+		AuthenticationException exception,
+		WebRequest request
+	) {
+		String detail = exception.getMessage() != null && !exception.getMessage().isBlank()
+			? exception.getMessage()
+			: "Authentication is required to access this resource.";
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.UNAUTHORIZED,
+			"Authentication required",
+			detail,
+			"urn:assetdock:problem:unauthenticated",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
+	}
+
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	ResponseEntity<ProblemDetail> handleMaxUploadSizeExceeded(
+		MaxUploadSizeExceededException exception,
+		WebRequest request
+	) {
+		ProblemDetail problemDetail = problemDetailFactory.create(
+			HttpStatus.PAYLOAD_TOO_LARGE,
+			"Payload too large",
+			"The uploaded file exceeds the maximum allowed size.",
+			"urn:assetdock:problem:payload-too-large",
+			extractPath(request)
+		);
+
+		return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(problemDetail);
 	}
 
 	@ExceptionHandler(AccessDeniedException.class)

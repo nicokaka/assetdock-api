@@ -25,6 +25,6 @@ public class SearchController {
 		@RequestParam(required = false, defaultValue = "") String q,
 		@RequestParam(required = false, defaultValue = "10") Integer limit
 	) {
-		return searchQueryService.search(principal, q, limit != null && limit <= 50 ? limit : 10);
+		return searchQueryService.search(principal, q, limit != null && limit > 0 && limit <= 50 ? limit : 10);
 	}
 }

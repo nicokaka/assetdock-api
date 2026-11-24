@@ -16,6 +16,7 @@ import com.assetdock.api.person.domain.PersonRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -100,16 +101,21 @@ public class AssetManagementService {
 	@Transactional(readOnly = true)
 	public AssetPageView list(AuthenticatedUserPrincipal actor, Integer page, Integer size, String status, String search, UUID categoryId, UUID locationId) {
 		int actualPage = page != null && page > 0 ? page : 1;
-		int actualSize = size != null && size > 0 && size <= 100 ? size : 20;
-		int offset = (actualPage - 1) * actualSize;
+		int actualSize = (size == null || size <= 0) ? 20 : Math.min(size, 100);
+		long offsetLong = (long) (actualPage - 1) * actualSize;
+		if (offsetLong > Integer.MAX_VALUE) {
+			throw new InvalidAssetRequestException("Page offset is too large.");
+		}
+		int offset = (int) offsetLong;
+		String normalizedStatus = normalizeAssetStatusFilter(status);
 
 		if (actor.isSuperAdmin()) {
-			List<AssetView> items = assetRepository.findAllPaginatedGlobally(actualSize, offset, status, search, categoryId, locationId)
+			List<AssetView> items = assetRepository.findAllPaginatedGlobally(actualSize, offset, normalizedStatus, search, categoryId, locationId)
 				.stream()
 				.map(this::toView)
 				.toList();
 
-			long totalItems = assetRepository.countGlobally(status, search, categoryId, locationId);
+			long totalItems = assetRepository.countGlobally(normalizedStatus, search, categoryId, locationId);
 			int totalPages = (int) Math.ceil((double) totalItems / actualSize);
 
 			return new AssetPageView(items, actualPage, actualSize, totalItems, totalPages);
@@ -118,12 +124,12 @@ public class AssetManagementService {
 		UUID organizationId = requireActorOrganizationId(actor);
 		tenantAccessService.requireAssetReadAccess(actor, organizationId);
 
-		List<AssetView> items = assetRepository.findAllPaginated(organizationId, actualSize, offset, status, search, categoryId, locationId)
+		List<AssetView> items = assetRepository.findAllPaginated(organizationId, actualSize, offset, normalizedStatus, search, categoryId, locationId)
 			.stream()
 			.map(this::toView)
 			.toList();
 
-		long totalItems = assetRepository.countForOrganization(organizationId, status, search, categoryId, locationId);
+		long totalItems = assetRepository.countForOrganization(organizationId, normalizedStatus, search, categoryId, locationId);
 		int totalPages = (int) Math.ceil((double) totalItems / actualSize);
 
 		return new AssetPageView(items, actualPage, actualSize, totalItems, totalPages);
@@ -334,6 +340,21 @@ public class AssetManagementService {
 			asset.createdAt(),
 			asset.updatedAt()
 		);
+	}
+
+	private String normalizeAssetStatusFilter(String status) {
+		if (status == null || status.isBlank()) {
+			return null;
+		}
+		String normalized = status.trim().toUpperCase(Locale.ROOT);
+		if ("OPERATIONAL".equals(normalized)) {
+			return normalized;
+		}
+		try {
+			return AssetStatus.valueOf(normalized).name();
+		} catch (IllegalArgumentException exception) {
+			throw new InvalidAssetRequestException("Invalid asset status filter: " + status.trim());
+		}
 	}
 
 	private UUID requireActorOrganizationId(AuthenticatedUserPrincipal actor) {
